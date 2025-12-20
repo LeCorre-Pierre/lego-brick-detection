@@ -1,5 +1,4 @@
 import cv2
-import numpy as np
 
 def detect_lego_bricks(image_path):
     # Placeholder for Lego brick detection logic

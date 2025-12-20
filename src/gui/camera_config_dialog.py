@@ -3,13 +3,12 @@ Camera configuration dialog for Lego Brick Detection application.
 """
 
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox,
-    QSpinBox, QGroupBox, QDialogButtonBox, QListWidget, QListWidgetItem,
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QGroupBox, QDialogButtonBox, QListWidget, QListWidgetItem,
     QMessageBox
 )
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt, pyqtSignal
-from typing import List, Optional
+from typing import Optional
 from ..models.video_source import VideoSource
 from ..vision.camera_scanner import CameraScanner
 from ..vision.video_utils import VideoCaptureManager
@@ -66,15 +65,10 @@ class CameraConfigDialog(QDialog):
         # Test controls
         test_layout = QHBoxLayout()
 
-        self.test_button = QPushButton("Test Camera")
-        self.test_button.clicked.connect(self._test_camera)
+        self.test_button = QPushButton("Test & Preview Camera")
+        self.test_button.clicked.connect(self._test_and_preview_camera)
         self.test_button.setEnabled(False)
         test_layout.addWidget(self.test_button)
-
-        self.preview_button = QPushButton("Preview")
-        self.preview_button.clicked.connect(self._preview_camera)
-        self.preview_button.setEnabled(False)
-        test_layout.addWidget(self.preview_button)
 
         layout.addLayout(test_layout)
 
@@ -112,7 +106,6 @@ class CameraConfigDialog(QDialog):
             device = current_item.data(Qt.ItemDataRole.UserRole)
             self.selected_device = device
             self.test_button.setEnabled(True)
-            self.preview_button.setEnabled(True)
 
             # Update info display
             info_text = f"""
@@ -125,44 +118,10 @@ Type: {device.type.value}
         else:
             self.selected_device = None
             self.test_button.setEnabled(False)
-            self.preview_button.setEnabled(False)
             self.info_label.setText("Select a camera device to view information")
 
-    def _test_camera(self):
-        """Test the selected camera device."""
-        if not self.selected_device:
-            return
-
-        try:
-            manager = VideoCaptureManager()
-            if manager.open(self.selected_device.device_id,
-                          self.selected_device.resolution[0],  # width
-                          self.selected_device.resolution[1],  # height
-                          self.selected_device.frame_rate):
-
-                # Try to read a frame
-                frame = manager.read_frame()
-                manager.close()
-
-                if frame is not None:
-                    QMessageBox.information(self, "Test Successful",
-                                          f"Camera {self.selected_device.get_display_name()} is working correctly!")
-                    self.logger.info(f"Camera test successful: {self.selected_device.get_display_name()}")
-                else:
-                    QMessageBox.warning(self, "Test Failed",
-                                      "Camera opened but failed to read frames. Check camera connection.")
-                    self.logger.warning(f"Camera test failed - no frames: {self.selected_device.get_display_name()}")
-            else:
-                QMessageBox.warning(self, "Test Failed",
-                                  f"Failed to open camera {self.selected_device.get_display_name()}")
-                self.logger.error(f"Camera test failed - cannot open: {self.selected_device.get_display_name()}")
-
-        except Exception as e:
-            QMessageBox.critical(self, "Test Error", f"Error testing camera: {e}")
-            self.logger.error(f"Camera test error: {e}")
-
-    def _preview_camera(self):
-        """Show a preview of the selected camera."""
+    def _test_and_preview_camera(self):
+        """Test the selected camera device and show preview."""
         if not self.selected_device:
             return
 
@@ -173,7 +132,7 @@ Type: {device.type.value}
                           self.selected_device.resolution[1],
                           self.selected_device.frame_rate):
 
-                # Capture a frame for preview
+                # Capture a frame for testing and preview
                 frame = manager.read_frame()
                 manager.close()
 
@@ -182,44 +141,53 @@ Type: {device.type.value}
                     from ..vision.video_utils import convert_frame_to_qimage
                     qimage = convert_frame_to_qimage(frame)
                     
-                    # Create a simple preview dialog
-                    preview_dialog = QDialog(self)
-                    preview_dialog.setWindowTitle(f"Camera Preview - {self.selected_device.get_display_name()}")
-                    preview_dialog.setModal(True)
+                    # Create a test result and preview dialog
+                    dialog = QDialog(self)
+                    dialog.setWindowTitle(f"Camera Test & Preview - {self.selected_device.get_display_name()}")
+                    dialog.setModal(True)
                     
                     layout = QVBoxLayout()
                     
-                    # Create label to display the image
+                    # Success message
+                    result_label = QLabel("✓ Camera is working correctly!")
+                    result_label.setStyleSheet("color: green; font-weight: bold;")
+                    layout.addWidget(result_label)
+                    
+                    # Create label to display the captured image
                     image_label = QLabel()
                     pixmap = QPixmap.fromImage(qimage)
                     # Scale down if too large
-                    if pixmap.width() > 800 or pixmap.height() > 600:
-                        pixmap = pixmap.scaled(800, 600, Qt.AspectRatioMode.KeepAspectRatio)
+                    if pixmap.width() > 600 or pixmap.height() > 400:
+                        pixmap = pixmap.scaled(600, 400, Qt.AspectRatioMode.KeepAspectRatio)
                     image_label.setPixmap(pixmap)
                     
                     layout.addWidget(image_label)
                     
                     # Add close button
                     button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
-                    button_box.rejected.connect(preview_dialog.reject)
+                    button_box.rejected.connect(dialog.reject)
                     layout.addWidget(button_box)
                     
-                    preview_dialog.setLayout(layout)
-                    preview_dialog.exec()
+                    dialog.setLayout(layout)
+                    dialog.exec()
                     
-                    self.logger.info(f"Camera preview shown: {self.selected_device.get_display_name()}")
+                    self.logger.info(f"Camera test & preview successful: {self.selected_device.get_display_name()}")
                 else:
-                    QMessageBox.warning(self, "Preview Failed",
-                                      "Camera opened but failed to capture preview frame.")
-                    self.logger.warning(f"Camera preview failed - no frame: {self.selected_device.get_display_name()}")
+                    QMessageBox.warning(self, "Test Failed",
+                                      "Camera opened but failed to capture frame. Check camera connection.")
+                    self.logger.warning(f"Camera test failed - no frame: {self.selected_device.get_display_name()}")
             else:
-                QMessageBox.warning(self, "Preview Failed",
+                QMessageBox.warning(self, "Test Failed",
                                   f"Failed to open camera {self.selected_device.get_display_name()}")
-                self.logger.error(f"Camera preview failed - cannot open: {self.selected_device.get_display_name()}")
+                self.logger.error(f"Camera test failed - cannot open: {self.selected_device.get_display_name()}")
 
         except Exception as e:
-            QMessageBox.critical(self, "Preview Error", f"Error showing camera preview: {e}")
-            self.logger.error(f"Camera preview error: {e}")
+            QMessageBox.critical(self, "Test Error", f"Error testing camera: {e}")
+            self.logger.error(f"Camera test error: {e}")
+
+    def _preview_camera(self):
+        """Show a preview of the selected camera (deprecated - use test & preview)."""
+        self._test_and_preview_camera()
 
     def _accept_selection(self):
         """Accept the current selection."""

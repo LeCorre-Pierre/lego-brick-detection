@@ -4,7 +4,7 @@ Set information display panel for Lego Brick Detection application.
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QGroupBox, QProgressBar
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QColor
 from typing import Optional
 from ..models.lego_set import LegoSet
 from ..utils.logger import get_logger
@@ -154,11 +154,11 @@ class SetInfoPanel(QWidget):
 
             # Color coding
             if brick.is_fully_found():
-                item.setBackground(Qt.GlobalColor.lightGreen)
+                item.setBackground(QColor(144, 238, 144))  # light green
             elif brick.found_quantity > 0:
-                item.setBackground(Qt.GlobalColor.yellow)
+                item.setBackground(QColor(255, 255, 224))  # light yellow
             else:
-                item.setBackground(Qt.GlobalColor.white)
+                item.setBackground(QColor(255, 255, 255))  # white
 
             self.brick_list.addItem(item)
 

@@ -2,13 +2,12 @@
 Main window for Lego Brick Detection application using PyQt6.
 """
 
-import sys
 from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QPushButton, QMenuBar, QStatusBar, QFileDialog, QMessageBox, QDialog
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QPushButton, QFileDialog, QMessageBox, QDialog
 )
-from PyQt6.QtCore import Qt, QTimer, QPoint
-from PyQt6.QtGui import QAction, QPixmap
+from PyQt6.QtCore import QPoint
+from PyQt6.QtGui import QAction
 
 import numpy as np
 
@@ -21,6 +20,7 @@ from .video_display import VideoDisplayWidget
 from ..vision.brick_detector import BrickDetector
 
 logger = get_logger("main_window")
+
 
 class MainWindow(QMainWindow):
     """Main application window for Lego Brick Detection."""
