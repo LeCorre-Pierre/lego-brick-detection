@@ -1,31 +1,25 @@
-# Implementation Plan: [FEATURE]
+# Implementation Plan: Lego Brick Finder Application
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Branch**: `001-lego-brick-finder` | **Date**: 2025-12-20 | **Spec**: [specs/001-lego-brick-finder/spec.md](specs/001-lego-brick-finder/spec.md)
 **Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+Build a desktop application that allows users to quickly find Lego bricks from their set mixed in a pile using real-time computer vision. The app loads set data from Rebrickable CSV files, configures webcam or Kinect input, and provides an intuitive QT-based GUI for detection and interaction. Uses OpenCV for video processing and object detection to highlight bricks with bounding boxes, allowing users to mark found bricks by clicking.
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
-
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Language/Version**: Python 3.11  
+**Primary Dependencies**: PyQt6 (QT GUI), OpenCV (video processing), NumPy (image processing), Pillow (image handling)  
+**Storage**: File system for Lego set CSV files, in-memory data structures for detection state and brick tracking  
+**Testing**: pytest for unit tests, manual testing for GUI interactions  
+**Target Platform**: Windows (primary development), cross-platform support (Linux/Mac via QT)  
+**Project Type**: Desktop GUI application  
+**Performance Goals**: Real-time video processing at 30 fps, UI response time <1 second, detection accuracy >80% for standard Lego bricks  
+**Constraints**: Robust detection in various lighting conditions and viewing angles, offline-capable, intuitive user interface with minimal setup steps  
+**Scale/Scope**: Single-user local application, supports Lego sets up to 1000+ bricks, handles video streams up to 1080p
 
 ## Constitution Check
 

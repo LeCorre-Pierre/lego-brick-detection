@@ -1,50 +1,42 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!-- Sync Impact Report
+Version change: N/A → 1.0.0
+List of modified principles: All principles added
+Added sections: Hardware Requirements, Development and Usage Guidelines
+Removed sections: None
+Templates requiring updates: plan-template.md (Constitution Check updated), spec-template.md (no changes), tasks-template.md (no changes), commands (none exist), README.md (no changes)
+Follow-up TODOs: None
+-->
+# Lego Brick Detection Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### Accurate Lego Brick Spotting
+Spot Lego bricks in a pile of Lego pieces. This principle ensures easy and accurate identification of target bricks, simplifying the user's task of finding specific pieces.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### Set-Based Brick Definition
+The Lego bricks to detect are defined from the set pieces of a Lego set. This allows for straightforward configuration using predefined inventories, enhancing usability by avoiding manual brick specification.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### No Re-detection After Pickup
+Once the Lego brick has been physically picked up, it should not be detected again. This prevents redundant detections, making the building process smoother and more user-friendly.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### Real-Time Video Input
+The input is coming from a Kinect (nominal) or a webcam (nominal) => Video stream. Utilizing standard hardware for real-time input ensures easy setup and continuous detection without complex configurations.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### Robust Environmental Detection
+The detection should work in various lighting conditions and angles. Eventually, the input can be a static image (less important) => Static input. This robustness promotes ease of use across different scenarios and environments.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## Hardware Requirements
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+If required, the hardware is 
+ - Kinect v1 (Xbox 360)
+ - GPU : RTX 4070
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+## Development and Usage Guidelines
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+Focus on simplicity and ease of use in all implementations. Ensure that the system is intuitive for users to set up and operate.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+Constitution supersedes all other practices; Amendments require documentation, approval, and migration plan. All changes must verify compliance with principles focused on easiness of usage.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2025-12-20 | **Last Amended**: 2025-12-20

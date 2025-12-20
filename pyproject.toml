@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lego-brick-detection"
+version = "0.1.0"
+description = "Application for detecting Lego bricks in a pile using computer vision"
+authors = [
+    {name = "Developer", email = "dev@example.com"},
+]
+dependencies = [
+    "opencv-python",
+    "numpy",
+    "pillow",
+    "PyQt6",
+]
+requires-python = ">=3.11"
+readme = "README.md"
+
+[project.scripts]
+lego-detector = "src.main:main"
+
+[tool.setuptools]
+packages = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
