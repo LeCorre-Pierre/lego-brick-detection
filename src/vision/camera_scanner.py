@@ -26,10 +26,7 @@ class CameraScanner:
             if device:
                 devices.append(device)
                 self.logger.info(f"Found device: {device.get_display_name()}")
-            else:
-                # Stop scanning if we hit consecutive failures
-                if device_id > 0 and len(devices) == 0:
-                    break
+            # Continue scanning all devices, don't stop on first failure
 
         self.logger.info(f"Scan complete. Found {len(devices)} devices")
         return devices
@@ -37,46 +34,28 @@ class CameraScanner:
     def _test_device(self, device_id: int) -> Optional[VideoSource]:
         """Test if a camera device is available and get its properties."""
         try:
-            cap = cv2.VideoCapture(device_id, cv2.CAP_DSHOW)  # Use DirectShow on Windows
-
-            if not cap.isOpened():
-                # Try without backend specification
-                cap = cv2.VideoCapture(device_id)
-                if not cap.isOpened():
-                    return None
-
-            # Get device properties
-            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            fps = int(cap.get(cv2.CAP_PROP_FPS))
-
-            # If properties are zero, try to set defaults and read
-            if width == 0 or height == 0:
-                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-                width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-            if fps == 0:
-                fps = 30  # Default assumption
-
-            cap.release()
-
-            # Create VideoSource object
-            device = VideoSource(
-                device_id=device_id,
-                name=f"Camera {device_id}",
-                source_type=VideoSourceType.WEBCAM,
-                width=width,
-                height=height,
-                fps=fps
-            )
-
-            return device
-
+            cap = cv2.VideoCapture(device_id)
+            if cap.isOpened():
+                ret, frame = cap.read()
+                if ret:
+                    # Get basic properties
+                    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)) or frame.shape[1]
+                    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)) or frame.shape[0]
+                    fps = int(cap.get(cv2.CAP_PROP_FPS)) or 30
+                    
+                    cap.release()
+                    
+                    device = VideoSource(
+                        type=VideoSourceType.WEBCAM,
+                        device_id=device_id,
+                        resolution=(width, height),
+                        frame_rate=fps
+                    )
+                    return device
+                cap.release()
         except Exception as e:
-            self.logger.debug(f"Error testing device {device_id}: {e}")
-            return None
+            pass  # Silent failure for scanning
+        return None
 
     def get_device_info(self, device_id: int) -> Optional[Dict]:
         """Get detailed information about a specific device."""

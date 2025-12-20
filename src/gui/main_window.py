@@ -5,7 +5,7 @@ Main window for Lego Brick Detection application using PyQt6.
 import sys
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QPushButton, QMenuBar, QStatusBar, QFileDialog, QMessageBox
+    QLabel, QPushButton, QMenuBar, QStatusBar, QFileDialog, QMessageBox, QDialog
 )
 from PyQt6.QtCore import Qt, QTimer, QPoint
 from PyQt6.QtGui import QAction, QPixmap

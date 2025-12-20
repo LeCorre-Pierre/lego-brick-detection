@@ -45,16 +45,16 @@ class SetLoader:
             # Create LegoSet
             set_name = set_info.get('name', f"Set {set_info.get('set_num', 'Unknown')}")
             set_number = set_info.get('set_num', 'unknown')
-            total_bricks = sum(brick.quantity for brick in bricks)
+            total_brick_types = len(bricks)  # Number of unique brick types
 
             lego_set = LegoSet(
                 name=set_name,
                 set_number=set_number,
-                total_bricks=total_bricks,
+                total_bricks=total_brick_types,
                 bricks=bricks
             )
 
-            self.logger.info(f"Loaded set '{set_name}' with {len(bricks)} brick types ({total_bricks} total bricks)")
+            self.logger.info(f"Loaded set '{set_name}' with {len(bricks)} brick types ({sum(b.quantity for b in bricks)} total bricks)")
             return lego_set
 
         except Exception as e:
@@ -63,10 +63,19 @@ class SetLoader:
 
     def _read_set_info(self, path: Path) -> dict:
         """Read set information from CSV (first row or separate file)."""
-        # For simplicity, assume set info is in the parts file or derive from filename
-        # In a real implementation, might have separate set CSV
-        set_num = path.stem  # Use filename as set number
-        return {'set_num': set_num, 'name': f'Set {set_num}'}
+        # Extract set number from filename like "rebrickable_parts_60122-1-volcano-crawler.csv"
+        filename = path.stem
+        # Look for pattern like "60122-1" in the filename
+        import re
+        match = re.search(r'(\d+-\d+)', filename)
+        if match:
+            set_num = match.group(1)
+            name = filename.replace('rebrickable_parts_', '').replace(f'{set_num}-', '').replace('-', ' ').title()
+        else:
+            set_num = filename
+            name = f'Set {set_num}'
+        
+        return {'set_num': set_num, 'name': name}
 
     def _read_parts_data(self, path: Path) -> list[Brick]:
         """Read parts data from CSV."""
@@ -99,10 +108,10 @@ class SetLoader:
     def _parse_brick_from_dict(self, row: dict) -> Optional[Brick]:
         """Parse brick from dictionary (header present)."""
         try:
-            part_num = row.get('part_num', row.get('Part Num', ''))
-            color = row.get('color_name', row.get('Color Name', 'Unknown'))
+            part_num = row.get('part_num', row.get('Part Num', row.get('Part', '')))
+            color = row.get('color_name', row.get('Color Name', row.get('Color', 'Unknown')))
             quantity = int(row.get('quantity', row.get('Quantity', 1)))
-            is_spare = row.get('is_spare', row.get('Is Spare', 'f')).lower() in ('true', 't', '1')
+            is_spare = row.get('is_spare', row.get('Is Spare', row.get('Is Spare', 'f'))).lower() in ('true', 't', '1', 'True', 'False')
 
             if not part_num or quantity < 1:
                 return None
