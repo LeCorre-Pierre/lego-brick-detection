@@ -179,9 +179,9 @@ class MainWindow(QMainWindow):
         # Start video display
         if self.video_display.start_video(
             self.current_video_source.device_id,
-            self.current_video_source.width,
-            self.current_video_source.height,
-            self.current_video_source.fps
+            self.current_video_source.resolution[0],  # width
+            self.current_video_source.resolution[1],  # height
+            self.current_video_source.frame_rate
         ):
             self.is_detecting = True
             self.start_button.setEnabled(False)

@@ -14,6 +14,16 @@ class Brick:
     found_quantity: int = 0
     dimensions: Tuple[float, float, float] = (0.0, 0.0, 0.0)  # width, length, height in studs
 
+    @property
+    def id(self) -> str:
+        """Get the brick ID (same as part number)."""
+        return self.part_number
+
+    @property
+    def name(self) -> str:
+        """Get the brick name (combination of color and part number)."""
+        return f"{self.color} {self.part_number}"
+
     def __post_init__(self):
         """Validate brick data after initialization."""
         if self.quantity < 1:
