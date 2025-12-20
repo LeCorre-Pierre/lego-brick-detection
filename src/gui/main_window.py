@@ -25,7 +25,7 @@ logger = get_logger("main_window")
 class MainWindow(QMainWindow):
     """Main application window for Lego Brick Detection."""
 
-    def __init__(self):
+    def __init__(self, set_file=None, camera_index=0):
         super().__init__()
         self.logger = logger
         self.current_set = None
@@ -36,6 +36,15 @@ class MainWindow(QMainWindow):
         self.init_ui()
         self.setup_menus()
         self.setup_status_bar()
+
+        # Auto-load set and camera if provided
+        if set_file:
+            self._auto_load_set(set_file)
+        if camera_index is not None:
+            self._auto_configure_camera(camera_index)
+
+        # Auto-start detection if both set and camera are available
+        self._check_and_start_detection()
 
         self.logger.info("Main window initialized")
 
@@ -140,6 +149,8 @@ class MainWindow(QMainWindow):
                 self.start_button.setEnabled(True)
                 self.status_bar.showMessage(f"Loaded set: {lego_set.name}")
                 self.logger.info(f"Set loaded: {lego_set.name} from {file_path}")
+                # Check if we can auto-start detection
+                self._check_and_start_detection()
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to load set: {e}")
                 self.logger.error(f"Failed to load set: {e}")
@@ -155,6 +166,8 @@ class MainWindow(QMainWindow):
                 self.current_video_source = selected_device
                 self.status_bar.showMessage(f"Camera configured: {selected_device.get_display_name()}")
                 self.logger.info(f"Camera configured: {selected_device.get_display_name()}")
+                # Check if we can auto-start detection
+                self._check_and_start_detection()
         else:
             self.logger.info("Camera configuration cancelled")
 
@@ -162,6 +175,58 @@ class MainWindow(QMainWindow):
         """Handle camera selection from dialog."""
         self.current_video_source = video_source
         self.logger.debug(f"Camera selected: {video_source.get_display_name()}")
+
+    def _auto_load_set(self, file_path: str):
+        """Automatically load a Lego set from the specified file path."""
+        try:
+            loader = SetLoader()
+            lego_set = loader.load_from_csv(file_path)
+            self.current_set = lego_set
+            self.set_info_panel.load_set(lego_set)
+            self.start_button.setEnabled(True)
+            self.status_bar.showMessage(f"Auto-loaded set: {lego_set.name}")
+            self.logger.info(f"Set auto-loaded: {lego_set.name} from {file_path}")
+            # Check if we can auto-start detection
+            self._check_and_start_detection()
+        except Exception as e:
+            # Log error instead of showing dialog during initialization
+            self.logger.error(f"Failed to auto-load set: {e}")
+            self.status_bar.showMessage(f"Failed to load set: {e}")
+
+    def _auto_configure_camera(self, camera_index: int):
+        """Automatically configure camera with the specified index."""
+        try:
+            from ..models.video_source import VideoSource, VideoSourceType
+            from ..vision.camera_scanner import CameraScanner
+
+            scanner = CameraScanner()
+            devices = scanner.scan_devices()
+
+            if camera_index < len(devices):
+                selected_device = devices[camera_index]
+                self.current_video_source = selected_device
+                self.status_bar.showMessage(f"Auto-configured camera: {selected_device.get_display_name()}")
+                self.logger.info(f"Camera auto-configured: {selected_device.get_display_name()}")
+                # Check if we can auto-start detection
+                self._check_and_start_detection()
+            else:
+                self.logger.warning(f"Camera index {camera_index} not available. Found {len(devices)} devices.")
+                # Use first available camera as fallback
+                if devices:
+                    self.current_video_source = devices[0]
+                    self.status_bar.showMessage(f"Auto-configured camera (fallback): {devices[0].get_display_name()}")
+                    self.logger.info(f"Camera auto-configured (fallback): {devices[0].get_display_name()}")
+            # Check if we can auto-start detection
+            self._check_and_start_detection()
+        except Exception as e:
+            self.logger.error(f"Failed to auto-configure camera: {e}")
+            self.status_bar.showMessage(f"Failed to configure camera: {e}")
+
+    def _check_and_start_detection(self):
+        """Check if both set and camera are available and auto-start detection."""
+        if self.current_set and self.current_video_source and not self.is_detecting:
+            self.logger.info("Both set and camera available, auto-starting detection")
+            self.start_detection()
 
     def start_detection(self):
         """Start brick detection."""
