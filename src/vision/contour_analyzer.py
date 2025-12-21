@@ -5,6 +5,7 @@ Contour detection and shape analysis for Lego Brick Detection application.
 import cv2
 import numpy as np
 from typing import List, Tuple, Optional, Dict
+from ..models.detection_params import DetectionParams
 from ..utils.logger import get_logger
 
 logger = get_logger("contour_analyzer")
@@ -18,6 +19,14 @@ class ContourAnalyzer:
         self.min_area = 300
         self.max_area = 100000
         self.approx_epsilon = 0.02  # For polygon approximation
+        self.edge_threshold = 50
+
+    def set_params(self, params: DetectionParams):
+        """Update contour analysis parameters."""
+        self.min_area = params.min_brick_size * params.min_brick_size
+        self.max_area = params.max_brick_size * params.max_brick_size
+        self.edge_threshold = params.edge_detection_threshold
+        self.logger.info("Contour analyzer parameters updated")
 
     def find_brick_contours(self, frame: np.ndarray) -> List[np.ndarray]:
         """Find contours that could be Lego bricks."""
@@ -29,7 +38,7 @@ class ContourAnalyzer:
             blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
             # Edge detection
-            edges = cv2.Canny(blurred, 50, 150)
+            edges = cv2.Canny(blurred, self.edge_threshold, self.edge_threshold * 3)
 
             # Morphological operations to clean up edges
             kernel = np.ones((3, 3), np.uint8)

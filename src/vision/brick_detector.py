@@ -8,6 +8,7 @@ from typing import List, Optional, Dict
 from ..models.detection_result import DetectionResult
 from ..models.lego_set import LegoSet
 from ..models.brick import Brick
+from ..models.detection_params import DetectionParams
 from ..vision.contour_analyzer import ContourAnalyzer
 from ..vision.color_matcher import ColorMatcher
 from ..utils.logger import get_logger
@@ -17,14 +18,25 @@ logger = get_logger("brick_detector")
 class BrickDetector:
     """Core engine for detecting Lego bricks in video frames."""
 
-    def __init__(self):
+    def __init__(self, detection_params: Optional[DetectionParams] = None):
         self.logger = logger
         self.contour_analyzer = ContourAnalyzer()
         self.color_matcher = ColorMatcher()
         self.current_set = None
         self.detection_history = []  # Keep track of recent detections
 
+        # Set default or provided detection parameters
+        self.detection_params = detection_params or DetectionParams()
+
         self.logger.info("Brick detector initialized")
+
+    def set_detection_params(self, params: DetectionParams):
+        """Update detection parameters."""
+        self.detection_params = params
+        # Update dependent components
+        self.contour_analyzer.set_params(params)
+        self.color_matcher.set_params(params)
+        self.logger.info("Detection parameters updated")
 
     def set_lego_set(self, lego_set: LegoSet):
         """Set the current Lego set for detection."""
@@ -39,8 +51,11 @@ class BrickDetector:
             return []
 
         try:
+            # Apply frame preprocessing based on parameters
+            processed_frame = self._preprocess_frame(frame)
+
             # Step 1: Find potential brick contours
-            contours = self.contour_analyzer.find_brick_contours(frame)
+            contours = self.contour_analyzer.find_brick_contours(processed_frame)
 
             if not contours:
                 return []
@@ -48,7 +63,7 @@ class BrickDetector:
             # Step 2: Analyze each contour, but skip bricks that are already fully found
             detections = []
             for contour in contours:
-                detection = self._analyze_contour(frame, contour)
+                detection = self._analyze_contour(processed_frame, contour)
                 if detection:
                     # Check if this brick type is already fully found
                     brick = next((b for b in self.current_set.bricks if b.part_number == detection.brick_id), None)
@@ -68,30 +83,61 @@ class BrickDetector:
             self.logger.error(f"Error in brick detection: {e}")
             return []
 
+    def _preprocess_frame(self, frame: np.ndarray) -> np.ndarray:
+        """Apply preprocessing based on detection parameters."""
+        processed = frame.copy()
+
+        # Apply brightness and contrast adjustments
+        if self.detection_params.brightness_compensation != 1.0 or self.detection_params.contrast_enhancement != 1.0:
+            processed = cv2.convertScaleAbs(
+                processed,
+                alpha=self.detection_params.contrast_enhancement,
+                beta=(self.detection_params.brightness_compensation - 1.0) * 50
+            )
+
+        # Apply morphological operations if enabled
+        if self.detection_params.morphological_operations:
+            kernel = np.ones((3, 3), np.uint8)
+            processed = cv2.morphologyEx(processed, cv2.MORPH_OPEN, kernel)
+
+        return processed
+
     def _analyze_contour(self, frame: np.ndarray, contour) -> Optional[DetectionResult]:
         """Analyze a single contour to determine if it's a brick."""
         try:
             # Get bounding box
             x, y, w, h = cv2.boundingRect(contour)
 
-            # Skip if too small or too large
+            # Skip if outside size constraints
             area = cv2.contourArea(contour)
-            if area < 500 or area > 50000:  # Configurable thresholds
+            min_area = self.detection_params.min_brick_size * self.detection_params.min_brick_size
+            max_area = self.detection_params.max_brick_size * self.detection_params.max_brick_size
+
+            if area < min_area or area > max_area:
                 return None
 
-            # Get aspect ratio (bricks are usually rectangular)
+            # Get aspect ratio and check against tolerance
             aspect_ratio = float(w) / h if h > 0 else 0
-            if not (0.5 <= aspect_ratio <= 3.0):  # Allow some variation
+            target_ratio = 1.0  # Assume square-ish bricks
+            ratio_diff = abs(aspect_ratio - target_ratio) / target_ratio
+
+            if ratio_diff > self.detection_params.aspect_ratio_tolerance:
                 return None
 
-            # Extract region of interest
-            roi = frame[y:y+h, x:x+w]
+            # Extract region of interest with margin
+            margin = self.detection_params.roi_margin
+            roi_y1 = max(0, y - margin)
+            roi_y2 = min(frame.shape[0], y + h + margin)
+            roi_x1 = max(0, x - margin)
+            roi_x2 = min(frame.shape[1], x + w + margin)
+
+            roi = frame[roi_y1:roi_y2, roi_x1:roi_x2]
             if roi.size == 0:
                 return None
 
             # Match color to known brick colors
             color_match = self.color_matcher.match_brick_color(roi)
-            if not color_match or color_match.confidence < 0.3:  # Minimum confidence
+            if not color_match or color_match.confidence < self.detection_params.confidence_threshold:
                 return None
 
             # Calculate center point

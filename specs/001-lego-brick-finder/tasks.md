@@ -148,11 +148,11 @@ description: "Task list for Lego Brick Finder Application implementation"
 
 ### Implementation for User Story 5
 
-- [ ] T031 [P] [US5] Create DetectionParams configuration structure in src/models/detection_params.py
-- [ ] T032 [US5] Build settings dialog UI in src/gui/settings_dialog.py
-- [ ] T033 [US5] Implement parameter persistence in src/utils/config_manager.py
-- [ ] T034 [US5] Connect settings to detection engine in src/vision/brick_detector.py
-- [ ] T035 [US5] Add settings menu integration in src/gui/main_window.py
+- [x] T031 [P] [US5] Create DetectionParams configuration structure in src/models/detection_params.py
+- [x] T032 [US5] Build settings dialog UI in src/gui/settings_dialog.py
+- [x] T033 [US5] Implement parameter persistence in src/utils/config_manager.py
+- [x] T034 [US5] Connect settings to detection engine in src/vision/brick_detector.py
+- [x] T035 [US5] Add settings menu integration in src/gui/main_window.py
 
 **Checkpoint**: At this point, User Story 5 should be fully functional and testable independently
 
