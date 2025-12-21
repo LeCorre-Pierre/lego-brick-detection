@@ -61,17 +61,6 @@ class SetInfoPanel(QWidget):
         progress_group.setLayout(progress_layout)
         layout.addWidget(progress_group)
 
-        # Brick list group
-        brick_group = QGroupBox("Bricks in Set")
-        brick_layout = QVBoxLayout()
-
-        self.brick_list = QListWidget()
-        self.brick_list.itemClicked.connect(self._on_brick_clicked)
-        brick_layout.addWidget(self.brick_list)
-
-        brick_group.setLayout(brick_layout)
-        layout.addWidget(brick_group)
-
         self.setLayout(layout)
 
     def load_set(self, lego_set: LegoSet):
@@ -89,9 +78,6 @@ class SetInfoPanel(QWidget):
         # Update progress
         self._update_progress()
 
-        # Update brick list
-        self._update_brick_list()
-
     def clear_set(self):
         """Clear the current set display."""
         self.current_set = None
@@ -99,7 +85,6 @@ class SetInfoPanel(QWidget):
         self.set_stats_label.setText("")
         self.progress_bar.setValue(0)
         self.progress_label.setText("0/0 bricks found")
-        self.brick_list.clear()
         self.logger.info("Set cleared")
 
     def update_brick_status(self, brick_id: str, found: bool):
@@ -119,7 +104,6 @@ class SetInfoPanel(QWidget):
             brick.unmark_found()
 
         self._update_progress()
-        self._update_brick_list()
 
     def _update_progress(self):
         """Update the progress bar and label."""
@@ -137,30 +121,9 @@ class SetInfoPanel(QWidget):
 
         self.progress_label.setText(f"{found_quantity}/{total_quantity} bricks found")
 
-    def _update_brick_list(self):
-        """Update the brick list display."""
-        self.brick_list.clear()
-
-        if self.current_set is None:
-            return
-
-        for brick in self.current_set.bricks:
-            # Create display text
-            status_icon = "✓" if brick.is_fully_found() else "○"
-            text = f"{status_icon} {brick.name} ({brick.id}) - {brick.found_quantity}/{brick.quantity}"
-
-            item = QListWidgetItem(text)
-            item.setData(Qt.ItemDataRole.UserRole, brick.id)
-
-            # Color coding
-            if brick.is_fully_found():
-                item.setBackground(QColor(144, 238, 144))  # light green
-            elif brick.found_quantity > 0:
-                item.setBackground(QColor(255, 255, 224))  # light yellow
-            else:
-                item.setBackground(QColor(255, 255, 255))  # white
-
-            self.brick_list.addItem(item)
+    def refresh_progress(self):
+        """Refresh progress display without restarting tracking or logging."""
+        self._update_progress()
 
     def mark_brick_found_manually(self, brick_id: str):
         """Mark a brick as found manually (e.g., by clicking)."""
@@ -170,13 +133,7 @@ class SetInfoPanel(QWidget):
         if self.current_set.mark_brick_found_by_click(brick_id):
             self.progress_tracker.record_brick_found(brick_id)
             self._update_progress()
-            self._update_brick_list()
             self.logger.info(f"Manually marked brick as found: {brick_id}")
         else:
             self.logger.warning(f"Could not mark brick as found: {brick_id}")
-
-    def _on_brick_clicked(self, item: QListWidgetItem):
-        """Handle brick selection."""
-        brick_id = item.data(Qt.ItemDataRole.UserRole)
-        self.brick_selected.emit(brick_id)
         self.logger.debug(f"Brick selected: {brick_id}")

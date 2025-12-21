@@ -21,5 +21,12 @@ coverage.xml
 .pytest_cache
 .hypothesis
 .env
+dist/
+build/
+*.egg-info/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
 data/*
 models/*

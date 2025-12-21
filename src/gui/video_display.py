@@ -40,6 +40,22 @@ class VideoDisplayWidget(QWidget):
         self.video_label.setMouseTracking(True)  # Enable mouse tracking
         self.video_label.installEventFilter(self)  # Install event filter for mouse events
 
+        # Status label overlay
+        self.status_label = QLabel("")
+        self.status_label.setStyleSheet("""
+            QLabel {
+                color: yellow;
+                background-color: rgba(0, 0, 0, 0.7);
+                font-size: 14px;
+                font-weight: bold;
+                padding: 5px;
+                border-radius: 3px;
+            }
+        """)
+        self.status_label.setParent(self.video_label)
+        self.status_label.move(10, 10)
+        self.status_label.hide()  # Initially hidden
+
         # Layout
         layout = QVBoxLayout()
         layout.addWidget(self.video_label)
@@ -137,6 +153,29 @@ class VideoDisplayWidget(QWidget):
         """Enable or disable detection overlays."""
         self.show_overlays = visible
         self.logger.info(f"Detection overlays {'enabled' if visible else 'disabled'}")
+
+    def set_status_text(self, text: str, visible: bool = True):
+        """Set the status text overlay."""
+        self.status_label.setText(text)
+        if visible:
+            self.status_label.show()
+        else:
+            self.status_label.hide()
+        self.logger.debug(f"Status text set to: '{text}' (visible: {visible})")
+
+    def update_model_loading_status(self, is_loading: bool):
+        """Update status text based on model loading state."""
+        if is_loading:
+            self.set_status_text("Loading AI Model...")
+        else:
+            self.set_status_text("Detection Active", visible=True)
+
+    def update_detection_status(self, is_detecting: bool):
+        """Update status text based on detection state."""
+        if is_detecting:
+            self.set_status_text("Detection Active")
+        else:
+            self.set_status_text("Preview Active", visible=True)
 
     def eventFilter(self, obj, event):
         """Handle events for child widgets."""

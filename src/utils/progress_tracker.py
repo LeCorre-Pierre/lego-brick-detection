@@ -119,7 +119,7 @@ class ProgressTracker:
         elapsed = datetime.now() - self.start_time
         hours, remainder = divmod(int(elapsed.total_seconds()), 3600)
         minutes, seconds = divmod(remainder, 60)
-        return "02d"
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
     def _get_estimated_completion_time(self) -> Optional[str]:
         """Estimate time to completion based on current rate."""
@@ -139,10 +139,10 @@ class ProgressTracker:
             minutes_remaining = int(hours_remaining * 60)
             return f"{minutes_remaining} minutes"
         elif hours_remaining < 24:
-            return ".1f"
+            return f"{hours_remaining:.1f} hours"
         else:
             days_remaining = hours_remaining / 24
-            return ".1f"
+            return f"{days_remaining:.1f} days"
 
     def get_recent_activity(self, limit: int = 10) -> List[Dict]:
         """Get recent brick finding activity."""

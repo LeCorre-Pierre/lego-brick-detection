@@ -6,11 +6,43 @@ import csv
 import logging
 from pathlib import Path
 from typing import Optional
+from PyQt6.QtCore import QThread, pyqtSignal
 from ..models.lego_set import LegoSet
 from ..models.brick import Brick
 from ..utils.logger import get_logger
 
 logger = get_logger("set_loader")
+
+class SetCSVLoader(QThread):
+    """Threaded loader for Lego set data from CSV files."""
+    
+    # Signals
+    finished = pyqtSignal(object)  # Emitted when loading is complete (LegoSet)
+    error = pyqtSignal(str)        # Emitted on loading error
+    progress = pyqtSignal(str)     # Emitted for progress updates
+    
+    def __init__(self, file_path: str):
+        super().__init__()
+        self.file_path = file_path
+        self.logger = logger
+        
+    def run(self):
+        """Load the set in a separate thread."""
+        try:
+            self.progress.emit("Loading Lego set from CSV...")
+            
+            loader = SetLoader()
+            lego_set = loader.load_from_csv(self.file_path)
+            
+            if lego_set:
+                self.progress.emit(f"Loaded set: {lego_set.name}")
+                self.finished.emit(lego_set)
+            else:
+                self.error.emit("Failed to load set from CSV")
+                
+        except Exception as e:
+            self.error.emit(f"Error loading set: {str(e)}")
+            self.logger.error(f"Set loading error: {e}")
 
 class SetLoader:
     """Loads Lego set data from Rebrickable CSV format."""

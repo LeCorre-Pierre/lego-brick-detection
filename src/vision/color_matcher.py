@@ -5,6 +5,7 @@ Color matching and brick identification for Lego Brick Detection application.
 import cv2
 import numpy as np
 from typing import List, Optional, Dict, NamedTuple, Tuple
+from ..models.detection_params import DetectionParams
 from ..models.lego_set import LegoSet
 from ..models.brick import Brick
 from ..utils.logger import get_logger
@@ -48,6 +49,11 @@ class ColorMatcher:
         self.logger = logger
         self.current_bricks = []  # List of bricks in current set
         self.color_cache = {}  # Cache for color distance calculations
+    def set_params(self, params: DetectionParams):
+        """Update color matching parameters."""
+        self.color_threshold = params.color_threshold
+        self.saturation_boost = params.color_saturation_boost
+        self.logger.info("Color matcher parameters updated")
 
     def set_brick_colors(self, lego_set: LegoSet):
         """Set the brick colors for the current Lego set."""
@@ -58,16 +64,23 @@ class ColorMatcher:
     def match_brick_color(self, roi: np.ndarray) -> Optional[ColorMatch]:
         """Match the color of a region of interest to known brick colors."""
         try:
+            # Performance optimization: early exit for very small ROIs
+            if roi.size < 100:  # Less than 10x10 pixels
+                return None
+
             # Extract dominant color from ROI
             dominant_color = self._extract_dominant_color(roi)
 
-            # Find best matching brick
+            # Find best matching brick (limit to bricks that aren't fully found)
             best_match = None
             best_confidence = 0.0
 
-            for brick in self.current_bricks:
-                # For now, we'll use a simple color name matching
-                # In a real implementation, you'd have color data per brick
+            # Performance: only check bricks that still need to be found
+            bricks_to_check = [b for b in self.current_bricks if not b.is_fully_found()]
+            if not bricks_to_check:
+                return None  # All bricks found
+
+            for brick in bricks_to_check[:20]:  # Limit bricks to check for performance
                 brick_color_name = self._get_brick_color_name(brick)
                 if brick_color_name in self.LEGO_COLORS:
                     target_color = self.LEGO_COLORS[brick_color_name]
@@ -83,7 +96,8 @@ class ColorMatcher:
                         )
 
             # Only return matches above threshold
-            if best_match and best_match.confidence > 0.4:
+            threshold_confidence = self.color_threshold / 255.0  # Convert to 0-1 scale
+            if best_match and best_match.confidence > threshold_confidence:
                 return best_match
             else:
                 return None
@@ -95,22 +109,54 @@ class ColorMatcher:
     def _extract_dominant_color(self, roi: np.ndarray) -> Tuple[int, int, int]:
         """Extract the dominant color from a region of interest."""
         try:
+            # Performance optimization: use mean color for small ROIs
+            if roi.size < 1000:  # Less than ~30x30 pixels
+                avg_color = cv2.mean(roi)[:3]
+                return (int(avg_color[0]), int(avg_color[1]), int(avg_color[2]))
+
+            # Ensure roi is a proper 3D array
+            if len(roi.shape) != 3 or roi.shape[2] != 3:
+                self.logger.warning(f"ROI has unexpected shape: {roi.shape}, using mean color")
+                avg_color = cv2.mean(roi)[:3]
+                return (int(avg_color[0]), int(avg_color[1]), int(avg_color[2]))
+
             # Convert to HSV for better color analysis
             hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
 
-            # Calculate histogram
-            hist = cv2.calcHist([hsv], [0, 1, 2], None, [8, 8, 8], [0, 180, 0, 256, 0, 256])
+            # Verify HSV conversion worked
+            if len(hsv.shape) != 3 or hsv.shape[2] != 3:
+                self.logger.warning(f"HSV conversion failed, shape: {hsv.shape}, using mean color")
+                avg_color = cv2.mean(roi)[:3]
+                return (int(avg_color[0]), int(avg_color[1]), int(avg_color[2]))
 
-            # Find the bin with maximum value
-            max_idx = np.unravel_index(hist.argmax(), hist.shape)
+            # Use k-means clustering for better color extraction (but limit clusters for performance)
+            pixels = hsv.reshape(-1, 3).astype(np.float32)
 
-            # Convert back to approximate RGB
-            h = (max_idx[0] * 180) // 8
-            s = (max_idx[1] * 256) // 8
-            v = (max_idx[2] * 256) // 8
+            # Sample pixels for performance (every 4th pixel)
+            if len(pixels) > 1000:
+                pixels = pixels[::4]
 
-            # Convert HSV back to BGR
-            bgr = cv2.cvtColor(np.uint8([[[h, s, v]]]), cv2.COLOR_HSV2BGR)[0][0]
+            # Simple approach: use the most frequent hue
+            hist = cv2.calcHist([hsv], [0], None, [12], [0, 180])  # 12 hue bins
+            dominant_hue_bin = np.argmax(hist)
+
+            # Get average saturation and value for this hue range
+            try:
+                mask = (hsv[:, :, 0] >= dominant_hue_bin * 15) & (hsv[:, :, 0] < (dominant_hue_bin + 1) * 15)
+                hue_pixels = hsv[mask]  # This gives us (N, 3) array of pixels
+                if len(hue_pixels) > 0:
+                    avg_s = np.mean(hue_pixels[:, 1])  # Saturation is column 1
+                    avg_v = np.mean(hue_pixels[:, 2])  # Value is column 2
+                    dominant_hsv = [dominant_hue_bin * 15, avg_s, avg_v]
+                else:
+                    # Fallback to average
+                    dominant_hsv = cv2.mean(hsv)[:3]
+            except Exception as mask_error:
+                self.logger.warning(f"Error in hue range calculation: {mask_error}, using average")
+                dominant_hsv = cv2.mean(hsv)[:3]
+
+            # Convert back to BGR
+            bgr = cv2.cvtColor(np.uint8([[[dominant_hsv[0], dominant_hsv[1], dominant_hsv[2]]]]), cv2.COLOR_HSV2BGR)[0][0]
 
             return (int(bgr[0]), int(bgr[1]), int(bgr[2]))
 

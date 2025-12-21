@@ -5,6 +5,7 @@ Contour detection and shape analysis for Lego Brick Detection application.
 import cv2
 import numpy as np
 from typing import List, Tuple, Optional, Dict
+from ..models.detection_params import DetectionParams
 from ..utils.logger import get_logger
 
 logger = get_logger("contour_analyzer")
@@ -18,6 +19,14 @@ class ContourAnalyzer:
         self.min_area = 300
         self.max_area = 100000
         self.approx_epsilon = 0.02  # For polygon approximation
+        self.edge_threshold = 50
+
+    def set_params(self, params: DetectionParams):
+        """Update contour analysis parameters."""
+        self.min_area = params.min_brick_size * params.min_brick_size
+        self.max_area = params.max_brick_size * params.max_brick_size
+        self.edge_threshold = params.edge_detection_threshold
+        self.logger.info("Contour analyzer parameters updated")
 
     def find_brick_contours(self, frame: np.ndarray) -> List[np.ndarray]:
         """Find contours that could be Lego bricks."""
@@ -25,17 +34,20 @@ class ContourAnalyzer:
             # Convert to grayscale
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-            # Apply Gaussian blur to reduce noise
-            blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+            # Apply Gaussian blur to reduce noise (smaller kernel for performance)
+            blurred = cv2.GaussianBlur(gray, (3, 3), 0)
 
-            # Edge detection
-            edges = cv2.Canny(blurred, 50, 150)
+            # Edge detection with optimized thresholds
+            edges = cv2.Canny(blurred, self.edge_threshold, self.edge_threshold * 2)
 
-            # Morphological operations to clean up edges
-            kernel = np.ones((3, 3), np.uint8)
-            edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
+            # Skip morphological operations if not needed for performance
+            # Only apply if edges are noisy
+            edge_density = np.count_nonzero(edges) / edges.size
+            if edge_density > 0.1:  # If more than 10% edges, clean up
+                kernel = np.ones((2, 2), np.uint8)  # Smaller kernel for performance
+                edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
 
-            # Find contours
+            # Find contours with optimized parameters
             contours, hierarchy = cv2.findContours(
                 edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
             )
@@ -43,11 +55,17 @@ class ContourAnalyzer:
             if not contours:
                 return []
 
+            # Performance optimization: sort contours by area (largest first)
+            # and limit processing to top candidates
+            contours = sorted(contours, key=cv2.contourArea, reverse=True)[:100]
+
             # Filter contours based on brick-like properties
             brick_contours = []
             for contour in contours:
                 if self._is_brick_like(contour):
                     brick_contours.append(contour)
+                    if len(brick_contours) >= 50:  # Limit results for performance
+                        break
 
             self.logger.debug(f"Found {len(brick_contours)} potential brick contours")
             return brick_contours
