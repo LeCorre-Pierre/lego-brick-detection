@@ -4,10 +4,48 @@ Camera device scanning functionality for Lego Brick Detection application.
 
 import cv2
 from typing import List, Dict, Optional
+from PyQt6.QtCore import QThread, pyqtSignal
 from ..models.video_source import VideoSource, VideoSourceType
 from ..utils.logger import get_logger
 
 logger = get_logger("camera_scanner")
+
+class VideoSourceConfigurator(QThread):
+    """Threaded configurator for video sources (cameras)."""
+    
+    # Signals
+    finished = pyqtSignal(object)  # Emitted when configuration is complete (VideoSource)
+    error = pyqtSignal(str)        # Emitted on configuration error
+    progress = pyqtSignal(str)     # Emitted for progress updates
+    
+    def __init__(self, camera_index: int):
+        super().__init__()
+        self.camera_index = camera_index
+        self.logger = logger
+        
+    def run(self):
+        """Configure the video source in a separate thread."""
+        try:
+            self.progress.emit(f"Configuring camera {self.camera_index}...")
+            
+            scanner = CameraScanner()
+            devices = scanner.scan_devices()
+            
+            if self.camera_index < len(devices):
+                selected_device = devices[self.camera_index]
+                self.progress.emit(f"Configured camera: {selected_device.get_display_name()}")
+                self.finished.emit(selected_device)
+            elif devices:
+                # Fallback to first available camera
+                fallback_device = devices[0]
+                self.progress.emit(f"Camera {self.camera_index} not available, using fallback: {fallback_device.get_display_name()}")
+                self.finished.emit(fallback_device)
+            else:
+                self.error.emit("No cameras found")
+                
+        except Exception as e:
+            self.error.emit(f"Error configuring camera: {str(e)}")
+            self.logger.error(f"Camera configuration error: {e}")
 
 class CameraScanner:
     """Scans for available camera devices and provides device information."""

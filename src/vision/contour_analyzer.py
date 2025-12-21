@@ -34,17 +34,20 @@ class ContourAnalyzer:
             # Convert to grayscale
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-            # Apply Gaussian blur to reduce noise
-            blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+            # Apply Gaussian blur to reduce noise (smaller kernel for performance)
+            blurred = cv2.GaussianBlur(gray, (3, 3), 0)
 
-            # Edge detection
-            edges = cv2.Canny(blurred, self.edge_threshold, self.edge_threshold * 3)
+            # Edge detection with optimized thresholds
+            edges = cv2.Canny(blurred, self.edge_threshold, self.edge_threshold * 2)
 
-            # Morphological operations to clean up edges
-            kernel = np.ones((3, 3), np.uint8)
-            edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
+            # Skip morphological operations if not needed for performance
+            # Only apply if edges are noisy
+            edge_density = np.count_nonzero(edges) / edges.size
+            if edge_density > 0.1:  # If more than 10% edges, clean up
+                kernel = np.ones((2, 2), np.uint8)  # Smaller kernel for performance
+                edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
 
-            # Find contours
+            # Find contours with optimized parameters
             contours, hierarchy = cv2.findContours(
                 edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
             )
@@ -52,11 +55,17 @@ class ContourAnalyzer:
             if not contours:
                 return []
 
+            # Performance optimization: sort contours by area (largest first)
+            # and limit processing to top candidates
+            contours = sorted(contours, key=cv2.contourArea, reverse=True)[:100]
+
             # Filter contours based on brick-like properties
             brick_contours = []
             for contour in contours:
                 if self._is_brick_like(contour):
                     brick_contours.append(contour)
+                    if len(brick_contours) >= 50:  # Limit results for performance
+                        break
 
             self.logger.debug(f"Found {len(brick_contours)} potential brick contours")
             return brick_contours

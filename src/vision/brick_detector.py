@@ -50,11 +50,15 @@ class BrickDetector:
             self.logger.warning("No Lego set configured for detection")
             return []
 
+        # Early exit if no bricks left to find
+        if all(brick.is_fully_found() for brick in self.current_set.bricks):
+            return []
+
         try:
             # Apply frame preprocessing based on parameters
             processed_frame = self._preprocess_frame(frame)
 
-            # Step 1: Find potential brick contours
+            # Step 1: Find potential brick contours (with performance optimizations)
             contours = self.contour_analyzer.find_brick_contours(processed_frame)
 
             if not contours:
@@ -62,7 +66,7 @@ class BrickDetector:
 
             # Step 2: Analyze each contour, but skip bricks that are already fully found
             detections = []
-            for contour in contours:
+            for contour in contours[:50]:  # Limit contours to process for performance
                 detection = self._analyze_contour(processed_frame, contour)
                 if detection:
                     # Check if this brick type is already fully found
@@ -86,6 +90,14 @@ class BrickDetector:
     def _preprocess_frame(self, frame: np.ndarray) -> np.ndarray:
         """Apply preprocessing based on detection parameters."""
         processed = frame.copy()
+
+        # Performance optimization: downsample frame for initial processing
+        height, width = processed.shape[:2]
+        if width > 640:  # Only downsample if frame is large
+            scale_factor = 640 / width
+            new_width = int(width * scale_factor)
+            new_height = int(height * scale_factor)
+            processed = cv2.resize(processed, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
 
         # Apply brightness and contrast adjustments
         if self.detection_params.brightness_compensation != 1.0 or self.detection_params.contrast_enhancement != 1.0:

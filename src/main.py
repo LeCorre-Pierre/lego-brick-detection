@@ -6,10 +6,40 @@ import sys
 import argparse
 import time
 from PyQt6.QtWidgets import QApplication
+from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor
+from PyQt6.QtCore import Qt
 from .gui.main_window import MainWindow
 from .utils.logger import get_logger
 
 logger = get_logger("main")
+
+def create_application_icon():
+    """Create a simple application icon for the Lego Brick Detector."""
+    # Create a 64x64 pixel icon
+    pixmap = QPixmap(64, 64)
+    pixmap.fill(QColor(240, 240, 240))  # Light gray background
+
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+    # Draw a red Lego brick shape
+    brick_color = QColor(200, 50, 50)  # Red brick
+    painter.setBrush(brick_color)
+    painter.setPen(Qt.PenStyle.NoPen)
+
+    # Main brick body
+    painter.drawRect(8, 20, 48, 24)
+
+    # Brick studs (dots on top)
+    stud_color = QColor(220, 70, 70)  # Lighter red for studs
+    painter.setBrush(stud_color)
+    painter.drawEllipse(12, 12, 8, 8)  # Stud 1
+    painter.drawEllipse(28, 12, 8, 8)  # Stud 2
+    painter.drawEllipse(44, 12, 8, 8)  # Stud 3
+
+    painter.end()
+
+    return QIcon(pixmap)
 
 def main():
     """Main application entry point."""
@@ -31,6 +61,14 @@ def main():
         app = QApplication(sys.argv)
         app_creation_time = time.time()
         logger.info(".2f")
+
+        # Set application icon and branding
+        app_icon = create_application_icon()
+        app.setWindowIcon(app_icon)
+        app.setApplicationName("Lego Brick Detector")
+        app.setApplicationVersion("1.0.0")
+        app.setOrganizationName("Lego Detection Tools")
+        logger.info("Application icon and branding set")
 
         # Create and show main window with optional arguments
         window_creation_time = time.time()
