@@ -1,0 +1,2 @@
+non_lego_total,non_lego_fp_images,non_lego_fpr,duration_sec,confidence,nms_iou,min_size_px,aspect_ratio_low,aspect_ratio_high
+0,0,0.0,0.0,0.6,0.3,20,0.7,1.3
