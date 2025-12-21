@@ -121,6 +121,10 @@ class SetInfoPanel(QWidget):
 
         self.progress_label.setText(f"{found_quantity}/{total_quantity} bricks found")
 
+    def refresh_progress(self):
+        """Refresh progress display without restarting tracking or logging."""
+        self._update_progress()
+
     def mark_brick_found_manually(self, brick_id: str):
         """Mark a brick as found manually (e.g., by clicking)."""
         if not self.current_set:

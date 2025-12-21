@@ -79,21 +79,21 @@ class MainWindow(QMainWindow):
 
         self.init_ui()
         ui_init_time = time.time()
-        self.logger.info(".2f")
+        self.logger.info(f"UI init took {ui_init_time - init_start_time:.2f}s")
 
         self.setup_menus()
         menu_setup_time = time.time()
-        self.logger.info(".2f")
+        self.logger.info(f"Menu setup took {menu_setup_time - ui_init_time:.2f}s")
 
         self.setup_status_bar()
         status_bar_time = time.time()
-        self.logger.info(".2f")
+        self.logger.info(f"Status bar setup took {status_bar_time - menu_setup_time:.2f}s")
 
         # Start background initialization after UI is responsive
         QTimer.singleShot(0, self._deferred_initialization)
 
         total_init_time = time.time() - init_start_time
-        self.logger.info(".2f")
+        self.logger.info(f"MainWindow init took {total_init_time:.2f}s")
 
     def _deferred_initialization(self):
         """Perform initialization tasks after UI is responsive."""
@@ -692,7 +692,7 @@ class MainWindow(QMainWindow):
             # The detections are still used for visual overlays but don't automatically mark bricks as found
 
             # Update the set info panel (progress will only show manually marked bricks)
-            self.set_info_panel.load_set(self.current_set)
+            self.set_info_panel.refresh_progress()
             self._update_brick_list()
         except Exception as e:
             self.logger.error(f"Failed to update set progress: {e}")

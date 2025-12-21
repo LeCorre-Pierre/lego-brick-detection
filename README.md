@@ -23,6 +23,10 @@ Run the detection script: `python src/detect.py`
 - `models/`: Trained models
 - `notebooks/`: Jupyter notebooks for experimentation
 
+## Command
+
+python -m src.main --set-file ./data/sample_3005.csv --camera 0
+
 
 
 

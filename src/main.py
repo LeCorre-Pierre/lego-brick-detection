@@ -56,11 +56,11 @@ def main():
 
         args = parser.parse_args()
         arg_parse_time = time.time()
-        logger.info(".2f")
+        logger.info(f"Arg parse took {arg_parse_time - start_time:.2f}s")
 
         app = QApplication(sys.argv)
         app_creation_time = time.time()
-        logger.info(".2f")
+        logger.info(f"QApplication creation took {app_creation_time - arg_parse_time:.2f}s")
 
         # Set application icon and branding
         app_icon = create_application_icon()
@@ -74,7 +74,7 @@ def main():
         window_creation_time = time.time()
         window = MainWindow(set_file=args.set_file, camera_index=args.camera)
         window_creation_end_time = time.time()
-        logger.info(".2f")
+        logger.info(f"MainWindow creation took {window_creation_end_time - window_creation_time:.2f}s")
 
         window.show()
         logger.info("Main window shown")
@@ -84,7 +84,7 @@ def main():
         logger.info("Processed initial events")
 
         total_startup_time = time.time() - start_time
-        logger.info(".2f")
+        logger.info(f"Total startup took {total_startup_time:.2f}s")
 
         # Ensure the application doesn't quit immediately
         logger.info("Application GUI initialized, entering event loop")

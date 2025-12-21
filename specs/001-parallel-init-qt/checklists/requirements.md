@@ -1,8 +1,8 @@
-# Specification Quality Checklist: Lego Brick Finder Application
+# Specification Quality Checklist: Plan d'architecture — Initialisation parallèle (Qt)
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
-**Created**: 2025-12-20
-**Feature**: [specs/001-lego-brick-finder/spec.md](specs/001-lego-brick-finder/spec.md)
+**Created**: 2025-12-21
+**Feature**: [001-parallel-init-qt/spec.md](001-parallel-init-qt/spec.md)
 
 ## Content Quality
 
@@ -31,4 +31,7 @@
 
 ## Notes
 
-- Specification is complete and ready for planning phase.
+- Specification is complete and ready for planning phase
+- All sections follow the speckit.specify template requirements
+- Focus on user experience and performance metrics
+- Clear separation between UI responsiveness and background processing
