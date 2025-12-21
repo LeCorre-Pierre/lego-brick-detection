@@ -4,10 +4,10 @@ Main window for Lego Brick Detection application using PyQt6.
 
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QFileDialog, QMessageBox, QDialog, QLabel
+    QPushButton, QFileDialog, QMessageBox, QDialog, QLabel, QListWidget, QListWidgetItem, QGroupBox
 )
 from PyQt6.QtCore import QPoint, QThread, pyqtSignal, Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QAction
+from PyQt6.QtGui import QAction, QColor
 import time
 
 import numpy as np
@@ -79,9 +79,6 @@ class MainWindow(QMainWindow):
         status_bar_time = time.time()
         self.logger.info(".2f")
 
-        # Create loading notification
-        self._create_loading_notification()
-
         # Start asynchronous model loading
         self._start_model_loading()
 
@@ -109,13 +106,26 @@ class MainWindow(QMainWindow):
         # Create main layout
         main_layout = QVBoxLayout(central_widget)
 
-        # Create video display
+        # Set info panel at top
+        self.set_info_panel = SetInfoPanel()
+        main_layout.addWidget(self.set_info_panel)
+
+        # Create horizontal layout for video and brick list
+        content_layout = QHBoxLayout()
+
+        # Video display in the center
         self.video_display = VideoDisplayWidget()
         self.video_display.brick_clicked.connect(self._on_brick_clicked)
         self.video_display.frame_processed.connect(self._on_frame_processed)
-        main_layout.addWidget(self.video_display)
+        content_layout.addWidget(self.video_display)
 
-        # Create control panel
+        # Brick list on the right (extracted from set_info_panel)
+        self.brick_list_panel = self._create_brick_list_panel()
+        content_layout.addWidget(self.brick_list_panel)
+
+        main_layout.addLayout(content_layout)
+
+        # Control buttons at bottom
         control_panel = QWidget()
         control_layout = QHBoxLayout(control_panel)
 
@@ -132,59 +142,65 @@ class MainWindow(QMainWindow):
 
         control_layout.addStretch()
 
-        # Set info panel
-        self.set_info_panel = SetInfoPanel()
-        control_layout.addWidget(self.set_info_panel)
-
         main_layout.addWidget(control_panel)
 
         self.logger.info("UI initialized")
 
-    def _create_loading_notification(self):
-        """Create a loading notification overlay."""
-        # Create a semi-transparent overlay widget
-        self.loading_overlay = QWidget(self.video_display)
-        self.loading_overlay.setStyleSheet("""
-            QWidget {
-                background-color: rgba(0, 0, 0, 0.7);
-                border-radius: 10px;
-            }
-        """)
-        
-        # Create layout for the overlay
-        overlay_layout = QVBoxLayout(self.loading_overlay)
-        
-        # Add loading message
-        loading_label = QLabel("🤖 Loading AI Model...")
-        loading_label.setStyleSheet("""
-            QLabel {
-                color: white;
-                font-size: 18px;
-                font-weight: bold;
-                text-align: center;
-            }
-        """)
-        loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        overlay_layout.addWidget(loading_label)
-        
-        # Add progress message
-        progress_label = QLabel("Detection features will be available once loading is complete")
-        progress_label.setStyleSheet("""
-            QLabel {
-                color: #cccccc;
-                font-size: 12px;
-                text-align: center;
-            }
-        """)
-        progress_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        overlay_layout.addWidget(progress_label)
-        
-        # Position the overlay in the center of the video display
-        self.loading_overlay.setGeometry(50, 50, 400, 100)
-        self.loading_overlay.show()
+    def _create_brick_list_panel(self):
+        """Create a separate panel for the brick list."""
+        from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
+
+        # Brick list group
+        brick_group = QGroupBox("Bricks in Set")
+        brick_layout = QVBoxLayout()
+
+        self.brick_list = QListWidget()
+        self.brick_list.itemClicked.connect(self._on_brick_list_clicked)
+        brick_layout.addWidget(self.brick_list)
+
+        brick_group.setLayout(brick_layout)
+        brick_group.setFixedWidth(300)  # Fixed width for the brick list panel
+
+        return brick_group
+
+    def _on_brick_list_clicked(self, item):
+        """Handle brick selection from the brick list."""
+        if self.current_set:
+            brick_id = item.data(Qt.ItemDataRole.UserRole)
+            if brick_id:
+                self.set_info_panel.brick_selected.emit(brick_id)
+                self.logger.debug(f"Brick selected from list: {brick_id}")
+
+    def _update_brick_list(self):
+        """Update the brick list display."""
+        self.brick_list.clear()
+
+        if not self.current_set:
+            return
+
+        for brick in self.current_set.bricks:
+            # Create display text
+            status_icon = "✓" if brick.is_fully_found() else "○"
+            text = f"{status_icon} {brick.name} ({brick.id}) - {brick.found_quantity}/{brick.quantity}"
+
+            item = QListWidgetItem(text)
+            item.setData(Qt.ItemDataRole.UserRole, brick.id)
+
+            # Color coding
+            if brick.is_fully_found():
+                item.setBackground(QColor(144, 238, 144))  # light green
+            elif brick.found_quantity > 0:
+                item.setBackground(QColor(255, 255, 224))  # light yellow
+            else:
+                item.setBackground(QColor(255, 255, 255))  # white
+
+            self.brick_list.addItem(item)
 
     def _start_model_loading(self):
         """Start asynchronous model loading."""
+        # Set initial status text
+        self.video_display.update_model_loading_status(is_loading=True)
+        
         self.model_loader = ModelLoader()
         self.model_loader.finished.connect(self._on_model_loaded)
         self.model_loader.error.connect(self._on_model_error)
@@ -200,9 +216,8 @@ class MainWindow(QMainWindow):
         if self.brick_detector:
             self.brick_detector.set_detection_params(self.detection_params)
 
-        # Hide loading notification
-        if hasattr(self, 'loading_overlay'):
-            self.loading_overlay.hide()
+        # Update status text to show detection is active
+        self.video_display.update_model_loading_status(is_loading=False)
 
         # Enable detection features
         self.start_button.setEnabled(True)
@@ -216,9 +231,8 @@ class MainWindow(QMainWindow):
         """Called when model loading fails."""
         self.model_loading = False
         
-        # Hide loading notification and show error
-        if hasattr(self, 'loading_overlay'):
-            self.loading_overlay.hide()
+        # Update status text to show error
+        self.video_display.set_status_text(f"Model Load Error: {error_msg}", visible=True)
         
         QMessageBox.critical(self, "Model Loading Error", f"Failed to load AI model: {error_msg}")
         self.logger.error(f"Model loading failed: {error_msg}")
@@ -334,6 +348,7 @@ class MainWindow(QMainWindow):
                 lego_set = loader.load_from_csv(file_path)
                 self.current_set = lego_set
                 self.set_info_panel.load_set(lego_set)
+                self._update_brick_list()
                 self.start_button.setEnabled(True)
                 self.status_bar.showMessage(f"Loaded set: {lego_set.name}")
                 self.logger.info(f"Set loaded: {lego_set.name} from {file_path}")
@@ -482,11 +497,13 @@ class MainWindow(QMainWindow):
 
         # Update the set info panel
         self.set_info_panel.load_set(self.current_set)
+        self._update_brick_list()
 
     def _on_brick_clicked(self, brick_id: str, click_pos: QPoint):
         """Handle brick click from video display."""
         if self.current_set:
             self.set_info_panel.mark_brick_found_manually(brick_id)
+            self._update_brick_list()
             self.logger.info(f"Brick clicked and marked as found: {brick_id}")
 
     def show_detection_settings(self):
