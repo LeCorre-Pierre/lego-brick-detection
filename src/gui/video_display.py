@@ -170,6 +170,13 @@ class VideoDisplayWidget(QWidget):
         else:
             self.set_status_text("Detection Active", visible=True)
 
+    def update_detection_status(self, is_detecting: bool):
+        """Update status text based on detection state."""
+        if is_detecting:
+            self.set_status_text("Detection Active")
+        else:
+            self.set_status_text("Preview Active", visible=True)
+
     def eventFilter(self, obj, event):
         """Handle events for child widgets."""
         if obj == self.video_label and event.type() == QEvent.Type.MouseButtonPress:

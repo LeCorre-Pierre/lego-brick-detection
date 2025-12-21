@@ -155,7 +155,7 @@ class MainWindow(QMainWindow):
         brick_layout = QVBoxLayout()
 
         self.brick_list = QListWidget()
-        self.brick_list.itemClicked.connect(self._on_brick_list_clicked)
+        self.brick_list.itemChanged.connect(self._on_brick_list_changed)
         brick_layout.addWidget(self.brick_list)
 
         brick_group.setLayout(brick_layout)
@@ -163,16 +163,37 @@ class MainWindow(QMainWindow):
 
         return brick_group
 
-    def _on_brick_list_clicked(self, item):
-        """Handle brick selection from the brick list."""
+    def _on_brick_list_changed(self, item):
+        """Handle brick checkbox state change from the brick list."""
         if self.current_set:
             brick_id = item.data(Qt.ItemDataRole.UserRole)
             if brick_id:
-                self.set_info_panel.brick_selected.emit(brick_id)
-                self.logger.debug(f"Brick selected from list: {brick_id}")
+                brick = self.current_set.get_brick_by_part_number(brick_id)
+                if brick:
+                    checked = item.checkState() == Qt.CheckState.Checked
+                    
+                    if checked and not brick.is_fully_found():
+                        # Mark as found if checkbox is checked and brick is not fully found
+                        if self.current_set.mark_brick_found(brick_id, brick.quantity - brick.found_quantity):
+                            self.logger.info(f"Marked brick {brick_id} as fully found via checkbox")
+                        else:
+                            self.logger.warning(f"Could not mark brick {brick_id} as found")
+                    elif not checked and brick.is_fully_found():
+                        # Unmark as found if checkbox is unchecked and brick is fully found
+                        if self.current_set.unmark_brick_found(brick_id, brick.found_quantity):
+                            self.logger.info(f"Unmarked brick {brick_id} as found via checkbox")
+                        else:
+                            self.logger.warning(f"Could not unmark brick {brick_id}")
+
+                    # Update UI
+                    self.set_info_panel.load_set(self.current_set)
+                    # Don't call _update_brick_list here to avoid recursion, just update the current item
+                    self._update_brick_list_item(item, brick)
+                else:
+                    self.logger.warning(f"Brick {brick_id} not found in current set")
 
     def _update_brick_list(self):
-        """Update the brick list display."""
+        """Update the brick list display with checkboxes."""
         self.brick_list.clear()
 
         if not self.current_set:
@@ -180,11 +201,17 @@ class MainWindow(QMainWindow):
 
         for brick in self.current_set.bricks:
             # Create display text
-            status_icon = "✓" if brick.is_fully_found() else "○"
-            text = f"{status_icon} {brick.name} ({brick.id}) - {brick.found_quantity}/{brick.quantity}"
+            text = f"{brick.name} ({brick.id}) - {brick.found_quantity}/{brick.quantity}"
 
             item = QListWidgetItem(text)
             item.setData(Qt.ItemDataRole.UserRole, brick.id)
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            
+            # Set checked state based on whether brick is fully found
+            if brick.is_fully_found():
+                item.setCheckState(Qt.CheckState.Checked)
+            else:
+                item.setCheckState(Qt.CheckState.Unchecked)
 
             # Color coding
             if brick.is_fully_found():
@@ -195,6 +222,26 @@ class MainWindow(QMainWindow):
                 item.setBackground(QColor(255, 255, 255))  # white
 
             self.brick_list.addItem(item)
+
+    def _update_brick_list_item(self, item, brick):
+        """Update a single brick list item."""
+        # Update display text
+        text = f"{brick.name} ({brick.id}) - {brick.found_quantity}/{brick.quantity}"
+        item.setText(text)
+        
+        # Update check state
+        if brick.is_fully_found():
+            item.setCheckState(Qt.CheckState.Checked)
+        else:
+            item.setCheckState(Qt.CheckState.Unchecked)
+        
+        # Update color coding
+        if brick.is_fully_found():
+            item.setBackground(QColor(144, 238, 144))  # light green
+        elif brick.found_quantity > 0:
+            item.setBackground(QColor(255, 255, 224))  # light yellow
+        else:
+            item.setBackground(QColor(255, 255, 255))  # white
 
     def _start_model_loading(self):
         """Start asynchronous model loading."""
@@ -428,13 +475,53 @@ class MainWindow(QMainWindow):
     def _check_and_start_detection(self):
         """Check if both set and camera are available and auto-start detection."""
         if self.current_set and self.current_video_source and not self.is_detecting:
-            self.logger.info("Both set and camera available, auto-starting detection")
-            self.start_detection()
+            if not self.model_loading:
+                if self.video_display.is_playing:
+                    # Video is already playing, just enable detection
+                    self.logger.info("Enabling detection on existing video stream")
+                    self._enable_detection_only()
+                else:
+                    # Start full detection (video + detection)
+                    self.logger.info("Both set and camera available, auto-starting detection")
+                    self.start_detection()
+            else:
+                # Start video preview immediately, detection will start when model loads
+                self.logger.info("Camera configured, starting video preview (detection will start when model loads)")
+                self._start_video_preview_only()
+
+    def _enable_detection_only(self):
+        """Enable detection on an already running video stream."""
+        if self.video_display.is_playing and self.current_video_source and self.current_set and not self.model_loading:
+            # Set the Lego set for detection
+            self.brick_detector.set_lego_set(self.current_set)
+            
+            # Enable detection
+            self.is_detecting = True
+            self.start_button.setEnabled(False)
+            self.stop_button.setEnabled(True)
+            self.status_bar.showMessage("Detection running...")
+            self.video_display.update_detection_status(is_detecting=True)
+            self.logger.info("Detection enabled on existing video stream")
+
+    def _start_video_preview_only(self):
+        """Start video preview without enabling detection."""
+        if not self.video_display.is_playing and self.current_video_source:
+            if self.video_display.start_video(
+                self.current_video_source.device_id,
+                self.current_video_source.resolution[0],  # width
+                self.current_video_source.resolution[1],  # height
+                self.current_video_source.frame_rate
+            ):
+                self.video_display.update_detection_status(is_detecting=False)
+                self.status_bar.showMessage("Preview active (waiting for model to load)")
+                self.logger.info("Video preview started (detection disabled until model loads)")
+            else:
+                self.logger.error("Failed to start video preview")
 
     def start_detection(self):
         """Start brick detection."""
         if self.model_loading:
-            QMessageBox.information(self, "Model Loading", "Please wait for the AI model to finish loading.")
+            self.logger.info("Model still loading, cannot start detection yet")
             return
             
         if not self.current_set:
@@ -448,29 +535,34 @@ class MainWindow(QMainWindow):
         # Set the Lego set for detection
         self.brick_detector.set_lego_set(self.current_set)
 
-        # Start video display
-        if self.video_display.start_video(
-            self.current_video_source.device_id,
-            self.current_video_source.resolution[0],  # width
-            self.current_video_source.resolution[1],  # height
-            self.current_video_source.frame_rate
-        ):
-            self.is_detecting = True
-            self.start_button.setEnabled(False)
-            self.stop_button.setEnabled(True)
-            self.status_bar.showMessage("Detection running...")
-            self.logger.info("Detection started")
-        else:
-            QMessageBox.critical(self, "Error", "Failed to start video capture")
-            self.logger.error("Failed to start video capture for detection")
+        # Start video display if not already running
+        if not self.video_display.is_playing:
+            if not self.video_display.start_video(
+                self.current_video_source.device_id,
+                self.current_video_source.resolution[0],  # width
+                self.current_video_source.resolution[1],  # height
+                self.current_video_source.frame_rate
+            ):
+                QMessageBox.critical(self, "Error", "Failed to start video capture")
+                self.logger.error("Failed to start video capture for detection")
+                return
+
+        # Enable detection
+        self.is_detecting = True
+        self.start_button.setEnabled(False)
+        self.stop_button.setEnabled(True)
+        self.status_bar.showMessage("Detection running...")
+        self.video_display.update_detection_status(is_detecting=True)
+        self.logger.info("Detection started")
 
     def stop_detection(self):
         """Stop brick detection."""
         self.is_detecting = False
-        self.video_display.stop_video()
+        # Note: Video continues running, only detection is stopped
         self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
-        self.status_bar.showMessage("Detection stopped")
+        self.status_bar.showMessage("Detection stopped (preview active)")
+        self.video_display.update_detection_status(is_detecting=False)
         self.logger.info("Detection stopped")
 
     def _on_frame_processed(self, frame: np.ndarray):
@@ -491,20 +583,36 @@ class MainWindow(QMainWindow):
         if not self.current_set or not detections:
             return
 
-        # Mark bricks as found based on detections
-        for detection in detections:
-            self.current_set.mark_brick_found(detection.brick_id)
+        # Note: Automatic marking removed - detection is now manual only
+        # The detections are still used for visual overlays but don't automatically mark bricks as found
 
-        # Update the set info panel
+        # Update the set info panel (progress will only show manually marked bricks)
         self.set_info_panel.load_set(self.current_set)
         self._update_brick_list()
 
     def _on_brick_clicked(self, brick_id: str, click_pos: QPoint):
-        """Handle brick click from video display."""
+        """Handle brick click from video display - toggle detection status."""
         if self.current_set:
-            self.set_info_panel.mark_brick_found_manually(brick_id)
-            self._update_brick_list()
-            self.logger.info(f"Brick clicked and marked as found: {brick_id}")
+            brick = self.current_set.get_brick_by_part_number(brick_id)
+            if brick:
+                if brick.is_fully_found():
+                    # Unmark one instance as found
+                    if self.current_set.unmark_brick_found(brick_id, 1):
+                        self.logger.info(f"Unmarked brick {brick_id} as found (clicked in video)")
+                    else:
+                        self.logger.warning(f"Could not unmark brick {brick_id}")
+                else:
+                    # Mark one instance as found
+                    if self.current_set.mark_brick_found(brick_id, 1):
+                        self.logger.info(f"Marked brick {brick_id} as found (clicked in video)")
+                    else:
+                        self.logger.warning(f"Could not mark brick {brick_id} as found")
+
+                # Update UI
+                self.set_info_panel.load_set(self.current_set)
+                self._update_brick_list()
+            else:
+                self.logger.warning(f"Brick {brick_id} not found in current set")
 
     def show_detection_settings(self):
         """Show the detection settings dialog."""
