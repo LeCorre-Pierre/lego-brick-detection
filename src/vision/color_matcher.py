@@ -5,7 +5,6 @@ Color matching and brick identification for Lego Brick Detection application.
 import cv2
 import numpy as np
 from typing import List, Optional, Dict, NamedTuple, Tuple
-from ..models.detection_params import DetectionParams
 from ..models.lego_set import LegoSet
 from ..models.brick import Brick
 from ..utils.logger import get_logger
@@ -49,11 +48,8 @@ class ColorMatcher:
         self.logger = logger
         self.current_bricks = []  # List of bricks in current set
         self.color_cache = {}  # Cache for color distance calculations
-    def set_params(self, params: DetectionParams):
-        """Update color matching parameters."""
-        self.color_threshold = params.color_threshold
-        self.saturation_boost = params.color_saturation_boost
-        self.logger.info("Color matcher parameters updated")
+        self.color_threshold = 50  # Default color matching threshold
+        self.saturation_boost = 1.2  # Default saturation boost
 
     def set_brick_colors(self, lego_set: LegoSet):
         """Set the brick colors for the current Lego set."""

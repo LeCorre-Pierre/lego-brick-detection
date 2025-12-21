@@ -18,9 +18,16 @@ class VideoCaptureManager:
         self.logger = logger
 
     def open(self, device_id: int, width: int = 640, height: int = 480, fps: int = 30) -> bool:
-        """Open video capture device."""
+        """Open video capture device, forcing DirectShow backend on Windows for fast startup."""
+        import platform
         try:
-            self.capture = cv2.VideoCapture(device_id)
+            self.logger.info(f"Attempting to open video device {device_id} (width={width}, height={height}, fps={fps})...")
+            # Force DirectShow backend on Windows for fast startup
+            if platform.system() == "Windows":
+                self.capture = cv2.VideoCapture(device_id, cv2.CAP_DSHOW)
+            else:
+                self.capture = cv2.VideoCapture(device_id)
+            self.logger.info(f"cv2.VideoCapture() call returned, checking isOpened...")
             if not self.capture.isOpened():
                 self.logger.error(f"Failed to open video device {device_id}")
                 return False

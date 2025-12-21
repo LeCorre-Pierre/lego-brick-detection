@@ -8,7 +8,6 @@ from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint, QEvent
 from typing import Optional, List
 import numpy as np
 from ..vision.video_utils import VideoCaptureManager, convert_frame_to_qimage, draw_bounding_box
-from ..models.detection_result import DetectionResult
 from ..vision.color_matcher import ColorMatcher
 from ..utils.logger import get_logger
 
@@ -29,8 +28,6 @@ class VideoDisplayWidget(QWidget):
         self.video_manager = VideoCaptureManager()
         self.current_frame = None
         self.is_playing = False
-        self.detection_results = []  # Current detection results
-        self.show_overlays = True  # Whether to show detection overlays
 
         # UI components
         self.video_label = QLabel("No video feed")
@@ -101,16 +98,11 @@ class VideoDisplayWidget(QWidget):
         # Store current frame
         self.current_frame = frame.copy()
 
-        # Apply detection overlays if enabled
-        display_frame = frame.copy()
-        if self.show_overlays and self.detection_results:
-            display_frame = self._apply_overlays(display_frame, self.detection_results)
-
         # Emit signal for processing
         self.frame_processed.emit(frame)
 
         # Convert to QImage and display
-        qimage = convert_frame_to_qimage(display_frame)
+        qimage = convert_frame_to_qimage(frame)
         if qimage is not None:
             pixmap = QPixmap.fromImage(qimage)
             self.video_label.setPixmap(pixmap)
@@ -118,41 +110,6 @@ class VideoDisplayWidget(QWidget):
     def get_current_frame(self) -> Optional[np.ndarray]:
         """Get the current video frame."""
         return self.current_frame.copy() if self.current_frame is not None else None
-
-    def overlay_detection_results(self, results: List[DetectionResult]):
-        """Overlay detection results on the current frame."""
-        self.detection_results = results
-
-    def _apply_overlays(self, frame: np.ndarray, results: List[DetectionResult]) -> np.ndarray:
-        """Apply detection overlays to a frame."""
-        try:
-            result_frame = frame.copy()
-
-            for detection in results:
-                # Create label with brick ID and confidence
-                label = f"{detection.brick_id} ({detection.confidence:.2f})"
-
-                # Choose color based on confidence
-                if detection.confidence > 0.8:
-                    color = (0, 255, 0)  # Green for high confidence
-                elif detection.confidence > 0.6:
-                    color = (0, 255, 255)  # Yellow for medium confidence
-                else:
-                    color = (0, 0, 255)  # Red for low confidence
-
-                # Draw bounding box with label
-                result_frame = draw_bounding_box(result_frame, detection.bbox, label, color)
-
-            return result_frame
-
-        except Exception as e:
-            self.logger.error(f"Error applying overlays: {e}")
-            return frame
-
-    def set_overlay_visibility(self, visible: bool):
-        """Enable or disable detection overlays."""
-        self.show_overlays = visible
-        self.logger.info(f"Detection overlays {'enabled' if visible else 'disabled'}")
 
     def set_status_text(self, text: str, visible: bool = True):
         """Set the status text overlay."""
@@ -163,55 +120,14 @@ class VideoDisplayWidget(QWidget):
             self.status_label.hide()
         self.logger.debug(f"Status text set to: '{text}' (visible: {visible})")
 
-    def update_model_loading_status(self, is_loading: bool):
-        """Update status text based on model loading state."""
-        if is_loading:
-            self.set_status_text("Loading AI Model...")
-        else:
-            self.set_status_text("Detection Active", visible=True)
-
-    def update_detection_status(self, is_detecting: bool):
-        """Update status text based on detection state."""
-        if is_detecting:
-            self.set_status_text("Detection Active")
-        else:
-            self.set_status_text("Preview Active", visible=True)
-
     def eventFilter(self, obj, event):
         """Handle events for child widgets."""
         if obj == self.video_label and event.type() == QEvent.Type.MouseButtonPress:
             if event.button() == Qt.MouseButton.LeftButton:
-                self._handle_mouse_click(event.pos())
+                # Mouse clicks disabled - no detection overlays
+                pass
             return True  # Event handled
         return super().eventFilter(obj, event)
-
-    def _handle_mouse_click(self, pos: QPoint):
-        """Handle mouse click on video display."""
-        if not self.detection_results:
-            return
-
-        # Convert screen coordinates to frame coordinates
-        label_size = self.video_label.size()
-        pixmap_size = self.video_label.pixmap()
-        if pixmap_size is None:
-            return
-
-        # Calculate scaling factors
-        scale_x = pixmap_size.width() / label_size.width()
-        scale_y = pixmap_size.height() / label_size.height()
-
-        # Adjust for label alignment and scaling
-        frame_x = int(pos.x() * scale_x)
-        frame_y = int(pos.y() * scale_y)
-
-        click_point = (frame_x, frame_y)
-
-        # Find which detection was clicked
-        for detection in self.detection_results:
-            if detection.contains_point(click_point):
-                self.brick_clicked.emit(detection.brick_id, pos)
-                self.logger.debug(f"Brick clicked: {detection.brick_id} at {click_point}")
-                break
 
     def closeEvent(self, event):
         """Handle widget close event."""

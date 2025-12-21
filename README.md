@@ -27,7 +27,24 @@ Run the detection script: `python src/detect.py`
 
 python -m src.main --set-file ./data/sample_3005.csv --camera 0
 
+##Dataset 
+
+B200 LEGO Detection Dataset
+    https://www.kaggle.com/datasets/ronanpickell/b100-lego-detection-dataset/data
+
+    Use this data for training custom LEGO object detection models. This highly realistic data is fully synthetic, and attempts to mimic photo-realism as closely as possible.
+
+    FEATURES ✔ 200 Most Popular LEGO Parts ✔ 4,000 Images Per LEGO Part ✔ 800,000 Total Images ✔ 64x64 RGB Images ✔ In Context Images
+
+    This data was created through a mixed usage of the Blender Python API alongside many other Python packages including Matplotlib, Pillow, and PyAutoGUI.
+
+Brick Architect (https://brickarchitect.com) for knowledge and resources on LEGO parts and colors. LDraw (https://www.ldraw.org/) for 3D part models.
+Hex: Lego Computer Vision Dataset 
+    https://universe.roboflow.com/craftyblocks/hex-lego-yk2pe
 
 
+    Overview
+    The Hex: Lego Object Detection Model utilizes the YOLOv7 algorithm to accurately identify and classify various sizes and colors of LEGO bricks. This model is designed to perform robustly under diverse lighting conditions, suitable for applications in automated sorting, inventory management, and educational tools.
 
-
+    Dataset
+    This dataset, curated with Roboflow, includes 8,320 images and over 15,000 annotations, capturing LEGO bricks in different configurations and lighting environments. Data augmentation techniques were applied to enhance robustness, covering 28 distinct LEGO brick classes.

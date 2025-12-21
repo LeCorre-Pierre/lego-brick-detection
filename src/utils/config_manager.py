@@ -1,7 +1,7 @@
 """
-Configuration manager for Lego Brick Detection application.
+Configuration manager for Lego Brick Inventory application.
 
-Handles persistence of user preferences and detection parameters
+Handles persistence of user preferences
 to maintain settings across application sessions.
 """
 
@@ -10,7 +10,6 @@ import os
 from pathlib import Path
 from typing import Optional, Dict, Any
 
-from ..models.detection_params import DetectionParams
 from ..models.video_source import VideoSource
 from ..utils.logger import get_logger
 
@@ -21,7 +20,7 @@ class ConfigManager:
     """
     Manages application configuration persistence.
 
-    Provides methods to save and load user preferences, detection parameters,
+    Provides methods to save and load user preferences
     and other configurable settings to/from disk.
     """
 
@@ -37,61 +36,18 @@ class ConfigManager:
             # Use platform-specific app data directory
             home = Path.home()
             if os.name == 'nt':  # Windows
-                config_dir = home / 'AppData' / 'Local' / 'LegoBrickDetection'
+                config_dir = home / 'AppData' / 'Local' / 'LegoBrickInventory'
             else:  # Linux/Mac
-                config_dir = home / '.config' / 'lego_brick_detection'
+                config_dir = home / '.config' / 'lego_brick_inventory'
 
         self.config_dir = Path(config_dir)
         self.config_dir.mkdir(parents=True, exist_ok=True)
 
         # Configuration file paths
-        self.detection_params_file = self.config_dir / 'detection_params.json'
         self.video_source_file = self.config_dir / 'video_source.json'
         self.app_settings_file = self.config_dir / 'app_settings.json'
 
         logger.info(f"ConfigManager initialized with directory: {self.config_dir}")
-
-    def save_detection_params(self, params: DetectionParams) -> bool:
-        """
-        Save detection parameters to disk.
-
-        Args:
-            params: DetectionParams object to save
-
-        Returns:
-            True if successful, False otherwise
-        """
-        try:
-            data = params.to_dict()
-            with open(self.detection_params_file, 'w') as f:
-                json.dump(data, f, indent=2)
-            logger.info("Detection parameters saved successfully")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to save detection parameters: {e}")
-            return False
-
-    def load_detection_params(self) -> Optional[DetectionParams]:
-        """
-        Load detection parameters from disk.
-
-        Returns:
-            DetectionParams object if successful, None if file doesn't exist or error
-        """
-        try:
-            if not self.detection_params_file.exists():
-                logger.info("Detection parameters file does not exist, using defaults")
-                return None
-
-            with open(self.detection_params_file, 'r') as f:
-                data = json.load(f)
-
-            params = DetectionParams.from_dict(data)
-            logger.info("Detection parameters loaded successfully")
-            return params
-        except Exception as e:
-            logger.error(f"Failed to load detection parameters: {e}")
-            return None
 
     def save_video_source(self, video_source: VideoSource) -> bool:
         """
@@ -216,7 +172,6 @@ class ConfigManager:
         """
         try:
             files_to_delete = [
-                self.detection_params_file,
                 self.video_source_file,
                 self.app_settings_file
             ]
