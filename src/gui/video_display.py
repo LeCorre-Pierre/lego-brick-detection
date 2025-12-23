@@ -172,6 +172,52 @@ class VideoDisplayWidget(QWidget):
             return True  # Event handled
         return super().eventFilter(obj, event)
 
+    def draw_detections(self, frame: np.ndarray, detections: List) -> np.ndarray:
+        """Draw bounding boxes and labels on frame from detections.
+        
+        Args:
+            frame: Input frame (BGR format)
+            detections: List of Detection objects
+            
+        Returns:
+            Frame with bounding boxes and labels drawn
+        """
+        if not detections:
+            return frame
+        
+        output_frame = frame.copy()
+        
+        # Drawing parameters
+        box_color = (0, 255, 0)  # Green (BGR)
+        box_thickness = 2
+        text_color = (255, 255, 255)  # White
+        text_thickness = 1
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.6
+        
+        for detection in detections:
+            x1, y1, x2, y2 = [int(v) for v in detection.bbox]
+            
+            # Draw bounding box
+            cv2.rectangle(output_frame, (x1, y1), (x2, y2), box_color, box_thickness)
+            
+            # Draw label with confidence
+            label = f"{detection.class_name} ({detection.confidence:.2f})"
+            label_size, _ = cv2.getTextSize(label, font, font_scale, text_thickness)
+            label_y = max(y1 - 5, label_size[1] + 5)
+            
+            # Draw label background
+            cv2.rectangle(output_frame, 
+                        (x1, label_y - label_size[1] - 5),
+                        (x1 + label_size[0] + 5, label_y),
+                        box_color, -1)
+            
+            # Draw label text
+            cv2.putText(output_frame, label, (x1 + 2, label_y - 5),
+                       font, font_scale, text_color, text_thickness)
+        
+        return output_frame
+
     def closeEvent(self, event):
         """Handle widget close event."""
         self.stop_video()

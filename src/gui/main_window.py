@@ -254,6 +254,12 @@ class MainWindow(QMainWindow):
 
         self.logger.info("UI initialized")
 
+        # Connect detection panel signals
+        self.detection_panel.detection_toggled.connect(self._on_detection_toggled)
+        
+        # Connect video display frame signal for detection processing
+        self.video_display.frame_processed.connect(self._process_frame_for_detection)
+
     def _create_brick_list_panel(self):
         """Create a separate panel for the brick list."""
         from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
@@ -578,6 +584,48 @@ class MainWindow(QMainWindow):
                 self._update_brick_list()
             else:
                 self.logger.warning(f"Brick {brick_id} not found in current set")
+
+    def _on_detection_toggled(self, is_enabled: bool):
+        """Handle detection toggle on/off."""
+        if not self.detection_engine:
+            self.logger.warning("Detection toggled but engine not initialized")
+            return
+        
+        if is_enabled:
+            self.detection_engine.set_state(DetectionState.ACTIVE)
+            self.detection_panel.set_active()
+            self.logger.info("Detection enabled")
+        else:
+            self.detection_engine.set_state(DetectionState.OFF)
+            self.detection_panel.set_inactive()
+            self.logger.info("Detection disabled")
+    
+    def _process_frame_for_detection(self, frame: np.ndarray):
+        """Process frame for detection if enabled."""
+        if not self.detection_engine:
+            return
+        
+        state = self.detection_engine.get_state()
+        if state != DetectionState.ACTIVE:
+            return
+        
+        try:
+            # Run detection inference
+            detections = self.detection_engine.infer(frame)
+            
+            if detections:
+                # Draw detections on frame
+                annotated_frame = self.video_display.draw_detections(frame, detections)
+                
+                # Update display with annotated frame
+                from ..vision.video_utils import convert_frame_to_qimage
+                qimage = convert_frame_to_qimage(annotated_frame)
+                if qimage is not None:
+                    from PyQt6.QtGui import QPixmap
+                    pixmap = QPixmap.fromImage(qimage)
+                    self.video_display.video_label.setPixmap(pixmap)
+        except Exception as e:
+            self.logger.error(f"Error processing frame for detection: {e}")
 
     def show_about(self):
         """Show about dialog."""
