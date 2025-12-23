@@ -2,7 +2,7 @@
 Set information display panel for Lego Brick Detection application.
 """
 
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QGroupBox, QProgressBar
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QGroupBox, QProgressBar, QCheckBox
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QColor
 from typing import Optional
@@ -17,6 +17,7 @@ class SetInfoPanel(QWidget):
 
     # Signals
     brick_selected = pyqtSignal(str)  # Emitted when a brick is selected (brick_id)
+    detect_scope_changed = pyqtSignal(bool)  # True: detect only set classes; False: detect all classes
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -61,6 +62,18 @@ class SetInfoPanel(QWidget):
         progress_group.setLayout(progress_layout)
         layout.addWidget(progress_group)
 
+        # Detection scope group
+        scope_group = QGroupBox("Detection Scope")
+        scope_layout = QVBoxLayout()
+
+        self.set_only_checkbox = QCheckBox("Detect only bricks from this set")
+        self.set_only_checkbox.setChecked(True)
+        self.set_only_checkbox.toggled.connect(self._on_set_only_toggled)
+        scope_layout.addWidget(self.set_only_checkbox)
+
+        scope_group.setLayout(scope_layout)
+        layout.addWidget(scope_group)
+
         self.setLayout(layout)
 
     def load_set(self, lego_set: LegoSet):
@@ -86,6 +99,19 @@ class SetInfoPanel(QWidget):
         self.progress_bar.setValue(0)
         self.progress_label.setText("0/0 bricks found")
         self.logger.info("Set cleared")
+
+    def _on_set_only_toggled(self, checked: bool):
+        """Emit detection scope change when checkbox toggles."""
+        try:
+            self.detect_scope_changed.emit(checked)
+            scope = "set-only" if checked else "all-classes"
+            self.logger.info(f"Detection scope changed -> {scope}")
+        except Exception as e:
+            self.logger.error(f"Failed to emit detection scope change: {e}")
+
+    def set_detection_scope(self, set_only: bool):
+        """Programmatically set detection scope checkbox state."""
+        self.set_only_checkbox.setChecked(set_only)
 
     def update_brick_status(self, brick_id: str, found: bool):
         """Update the status of a specific brick."""

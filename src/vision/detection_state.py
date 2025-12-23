@@ -37,7 +37,8 @@ class DetectionStateManager:
             old_state = self._state
             self._state = state
             self._error_message = error_msg
-            logger.info(f"Detection state changed: {old_state.value} → {state.value}")
+            # ASCII-only log message to avoid encoding issues on Windows consoles
+            logger.info(f"Detection state changed: {old_state.value} -> {state.value}")
             if error_msg:
                 logger.error(f"Detection error: {error_msg}")
 

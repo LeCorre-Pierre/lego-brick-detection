@@ -36,6 +36,7 @@ class MainWindow(QMainWindow):
         self.logger = logger
         self.current_set = None
         self.current_video_source = None
+        self.detect_only_set_classes = True  # Default detection scope: only classes from loaded set
 
         # Store auto-load parameters for deferred execution
         self.pending_set_file = set_file
@@ -157,6 +158,8 @@ class MainWindow(QMainWindow):
         self._update_brick_list()
         self.init_progress['set_loaded'] = True
         self.logger.info(f"Set loaded: {lego_set.name}")
+        # Apply detection filter based on new set
+        self._update_detection_allowed_classes()
         self._check_auto_start_video()
         
     def _on_set_error(self, error_msg: str):
@@ -205,6 +208,8 @@ class MainWindow(QMainWindow):
         # Set info panel at top
         self.set_info_panel = SetInfoPanel()
         main_layout.addWidget(self.set_info_panel)
+        # Connect detection scope toggle
+        self.set_info_panel.detect_scope_changed.connect(self._on_detect_scope_changed)
 
         # Detection panel (below set info)
         self.detection_panel = DetectionPanel()
@@ -595,10 +600,39 @@ class MainWindow(QMainWindow):
             self.detection_engine.set_state(DetectionState.ACTIVE)
             self.detection_panel.set_active()
             self.logger.info("Detection enabled")
+            self.status_bar.showMessage("Detection: ACTIVE")
         else:
             self.detection_engine.set_state(DetectionState.OFF)
             self.detection_panel.set_inactive()
             self.logger.info("Detection disabled")
+            self.status_bar.showMessage("Detection: INACTIVE")
+
+    def _on_detect_scope_changed(self, set_only: bool):
+        """Update detection scope (set-only vs all classes)."""
+        try:
+            self.detect_only_set_classes = set_only
+            self._update_detection_allowed_classes()
+        except Exception as e:
+            self.logger.error(f"Failed to update detection scope: {e}")
+
+    def _update_detection_allowed_classes(self):
+        """Compute and apply allowed class names based on current set and scope."""
+        try:
+            if not hasattr(self, 'detection_engine') or self.detection_engine is None:
+                return
+
+            if self.detect_only_set_classes and self.current_set:
+                allowed = set()
+                for brick in self.current_set.bricks:
+                    allowed.add(brick.part_number)
+                    allowed.add(brick.name)
+                self.detection_engine.set_allowed_class_names(allowed)
+                self.logger.info(f"Applied set-only detection filter with {len(allowed)} tokens")
+            else:
+                self.detection_engine.set_allowed_class_names(None)
+                self.logger.info("Detection filter disabled (detect all classes)")
+        except Exception as e:
+            self.logger.error(f"Failed to apply detection class filter: {e}")
     
     def _process_frame_for_detection(self, frame: np.ndarray):
         """Process frame for detection if enabled."""

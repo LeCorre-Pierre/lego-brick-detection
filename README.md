@@ -11,9 +11,33 @@ See [.specify/memory/constitution.md](.specify/memory/constitution.md) for proje
 1. Clone the repository.
 2. Install dependencies: `pip install -r requirements.txt`
 
+## Features
+
+- Real-time video preview with start/stop controls
+- Save Preview (JPG) button stores current frame in screenshoot/ with timestamp
+- YOLOv8 detection toggle with bounding boxes and labels
+- Detection scope control: choose to detect only bricks from the loaded set or all model classes
+
 ## Usage
 
-Run the detection script: `python src/detect.py`
+Run the GUI:
+
+```bash
+python -m src.main --set-file ./data/sample_3005.csv --camera 0
+```
+
+3. Start the video preview and toggle detection:
+
+- Click "Start Video" to begin the preview.
+- When the model finishes loading, the detection button becomes enabled.
+- Click "Start Detection" to overlay bounding boxes and labels on the preview.
+- Click again to stop detection and show a clean preview.
+
+4. Control detection scope:
+
+- In the "Detection Scope" section, use the checkbox "Detect only bricks from this set".
+- Enabled (default): Filters detections to classes matching bricks in the loaded set (by part number or name).
+- Disabled: Shows detections for all classes known by the YOLO model.
 
 ## Project Structure
 

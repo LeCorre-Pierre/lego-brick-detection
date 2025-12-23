@@ -19,23 +19,23 @@
 
 **Purpose**: Project infrastructure, dependencies, and foundational components
 
-- [ ] T001 Install YOLOv8 dependency (ultralytics) in requirements.txt and verify import
+- [X] T001 Install YOLOv8 dependency (ultralytics) in requirements.txt and verify import
   - **File**: `requirements.txt`, `src/vision/detection_engine.py`
   - **Acceptance**: `pip list | grep ultralytics` shows installed version; can run `from ultralytics import YOLO`
 
-- [ ] T002 Create detection state enum and management module `src/vision/detection_state.py`
+- [X] T002 Create detection state enum and management module `src/vision/detection_state.py`
   - **File**: `src/vision/detection_state.py`
   - **Acceptance**: Module exports `DetectionState` enum with states: OFF, LOADING, READY, ACTIVE, ERROR; includes thread-safe state getter/setter
 
-- [ ] T003 [P] Set up YOLOv8 detection engine wrapper in `src/vision/detection_engine.py` with stub methods
+- [X] T003 [P] Set up YOLOv8 detection engine wrapper in `src/vision/detection_engine.py` with stub methods
   - **File**: `src/vision/detection_engine.py`
   - **Acceptance**: Exports `YOLOv8Engine` class with methods: `load_model(path)`, `infer(frame)`, `get_detections()`, `unload_model()`; proper docstrings; no implementation yet
 
-- [ ] T004 [P] Create detection panel UI component `src/gui/detection_panel.py` with button placeholder
+- [X] T004 [P] Create detection panel UI component `src/gui/detection_panel.py` with button placeholder
   - **File**: `src/gui/detection_panel.py`
   - **Acceptance**: Exports `DetectionPanel` QWidget with toggle button, status label; signals for state changes; button initially disabled
 
-- [ ] T005 Create logger configuration for detection module in `src/utils/logger.py`
+- [X] T005 Create logger configuration for detection module in `src/utils/logger.py`
   - **File**: `src/utils/logger.py`
   - **Acceptance**: Detection-specific logger instance available; logs to app log with detection prefix
 
@@ -47,19 +47,19 @@
 
 **Independent Test**: Launch app → verify camera preview starts immediately → verify "Loading model..." status → verify button enabled after load
 
-- [ ] T006 [US1] Implement YOLOv8 model loading in `src/vision/detection_engine.py` with file validation
+- [X] T006 [US1] Implement YOLOv8 model loading in `src/vision/detection_engine.py` with file validation
   - **File**: `src/vision/detection_engine.py`
   - **Acceptance**: `load_model(model_path)` method loads model via ultralytics; validates file exists; handles missing files with exception; returns True on success
 
-- [ ] T007 [US1] Create model loader worker thread class in `src/vision/detection_engine.py`
+- [X] T007 [US1] Create model loader worker thread class in `src/vision/detection_engine.py`
   - **File**: `src/vision/detection_engine.py`
   - **Acceptance**: `ModelLoaderThread` (QThread subclass) loads model asynchronously; emits signals for progress, completion, error; proper cleanup on finish
 
-- [ ] T008 [US1] Integrate model loader into main window initialization in `src/gui/main_window.py`
+- [X] T008 [US1] Integrate model loader into main window initialization in `src/gui/main_window.py`
   - **File**: `src/gui/main_window.py`
   - **Acceptance**: On app startup, background thread loads model; status label shows "Loading model..."; no UI freezing during load; detection button disabled during load
 
-- [ ] T009 [US1] Update detection panel button state on model load completion in `src/gui/detection_panel.py`
+- [X] T009 [US1] Update detection panel button state on model load completion in `src/gui/detection_panel.py`
   - **File**: `src/gui/detection_panel.py`
   - **Acceptance**: Button state transitions from disabled (loading) to enabled (ready); label changes to "Start Detection"; button click handler connected
 
@@ -79,7 +79,7 @@
 
 **Independent Test**: Load app → enable detection → verify bounding boxes appear → disable detection → verify boxes disappear → re-enable → verify instant response
 
-- [ ] T012 [P] [US2] Implement YOLOv8 inference in `src/vision/detection_engine.py` with frame processing
+- [X] T012 [P] [US2] Implement YOLOv8 inference in `src/vision/detection_engine.py` with frame processing
   - **File**: `src/vision/detection_engine.py`
   - **Acceptance**: `infer(frame)` method processes frame; returns list of detections (bounding boxes, class labels, confidence); handles variable input sizes; runs synchronously
 
@@ -87,7 +87,7 @@
   - **File**: `src/vision/detection_engine.py`
   - **Acceptance**: `DetectionWorkerThread` receives frames from queue; runs inference asynchronously; emits detections signal; gracefully handles queue stalls; proper thread sync
 
-- [ ] T013 [US2] Connect detection toggle button click to start/stop detection in `src/gui/detection_panel.py`
+- [X] T013 [US2] Connect detection toggle button click to start/stop detection in `src/gui/detection_panel.py`
   - **File**: `src/gui/detection_panel.py`
   - **Acceptance**: Button click toggles `DetectionState` between ACTIVE and OFF; button label updates ("Stop Detection" ↔ "Start Detection"); signal emitted to main window
 
@@ -95,7 +95,7 @@
   - **File**: `src/gui/video_display.py`
   - **Acceptance**: Video display widget sends frames to detection queue when detection is active; stops sending when detection is off; frame queue thread-safe
 
-- [ ] T015 [P] [US2] Implement bounding box rendering in `src/gui/video_display.py` with detection results
+- [X] T015 [P] [US2] Implement bounding box rendering in `src/gui/video_display.py` with detection results
   - **File**: `src/gui/video_display.py`
   - **Acceptance**: Method `draw_detections(frame, detections)` overlays bounding boxes and labels on frame; handles variable number of detections; renders at frame rate
 
@@ -103,11 +103,11 @@
   - **File**: `src/gui/video_display.py`
   - **Acceptance**: Bounding boxes include text labels (e.g., "2×4 Red Brick"); label format matches detected brick type; text readable at video resolution
 
-- [ ] T016 [US2] Connect detection results from engine to video display rendering in `src/gui/main_window.py`
+- [X] T016 [US2] Connect detection results from engine to video display rendering in `src/gui/main_window.py`
   - **File**: `src/gui/main_window.py`
   - **Acceptance**: Detection engine signals emit detection results; main window receives results; video display updates to show bounding boxes; update rate matches frame rate
 
-- [ ] T017 [US2] Implement model persistence in memory after toggle off in `src/vision/detection_engine.py`
+- [X] T017 [US2] Implement model persistence in memory after toggle off in `src/vision/detection_engine.py`
   - **File**: `src/vision/detection_engine.py`
   - **Acceptance**: Model remains loaded after detection is disabled; re-enabling detection does not reload model; inference response time <100ms on re-enable
 
@@ -123,15 +123,15 @@
 
 **Independent Test**: Observe button throughout app lifecycle; verify state matches expected transitions; users understand readiness at a glance
 
-- [ ] T019 [US3] Implement button visual states in `src/gui/detection_panel.py` (disabled, enabled, active)
+- [X] T019 [US3] Implement button visual states in `src/gui/detection_panel.py` (disabled, enabled, active)
   - **File**: `src/gui/detection_panel.py`
   - **Acceptance**: Button colors/styles differ by state: disabled (gray), enabled (blue), active (green); state matches `DetectionState` enum
 
-- [ ] T020 [P] [US3] Add state label updates to detection panel in `src/gui/detection_panel.py`
+- [X] T020 [P] [US3] Add state label updates to detection panel in `src/gui/detection_panel.py`
   - **File**: `src/gui/detection_panel.py`
   - **Acceptance**: Status label shows: "Loading model...", "Start Detection", "Stop Detection", or error message; label updates immediately on state change
 
-- [ ] T020 [P] [US3] Add status bar messages in main window for detection state in `src/gui/main_window.py`
+- [X] T020 [P] [US3] Add status bar messages in main window for detection state in `src/gui/main_window.py`
   - **File**: `src/gui/main_window.py`
   - **Acceptance**: Status bar displays current detection state; updates when state changes; provides user feedback on readiness
 
@@ -147,15 +147,15 @@
 
 **Independent Test**: Remove model file → launch app → verify error message → verify other features work (camera, screenshot save)
 
-- [ ] T022 [US4] Implement error handling in model loader in `src/vision/detection_engine.py`
+- [X] T022 [US4] Implement error handling in model loader in `src/vision/detection_engine.py`
   - **File**: `src/vision/detection_engine.py`
   - **Acceptance**: `load_model()` catches exceptions (file not found, corrupted, invalid format); emits error signal with message; state set to ERROR
 
-- [ ] T023 [US4] Display model loading error message in main window in `src/gui/main_window.py`
+- [X] T023 [US4] Display model loading error message in main window in `src/gui/main_window.py`
   - **File**: `src/gui/main_window.py`
   - **Acceptance**: Error message dialog displays on model load failure; message is user-friendly and actionable (e.g., "Model file not found in models/"); dialog doesn't block app
 
-- [ ] T024 [P] [US4] Update detection panel for error state in `src/gui/detection_panel.py`
+- [X] T024 [P] [US4] Update detection panel for error state in `src/gui/detection_panel.py`
   - **File**: `src/gui/detection_panel.py`
   - **Acceptance**: Button remains disabled when model fails to load; button label shows "Model Error"; button tooltip shows error details
 
