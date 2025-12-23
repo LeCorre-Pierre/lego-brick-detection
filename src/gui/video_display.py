@@ -7,6 +7,9 @@ from PyQt6.QtGui import QPixmap, QImage
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint, QEvent
 from typing import Optional, List
 import numpy as np
+import cv2
+import os
+from datetime import datetime
 from ..vision.video_utils import VideoCaptureManager, convert_frame_to_qimage, draw_bounding_box
 from ..vision.color_matcher import ColorMatcher
 from ..utils.logger import get_logger
@@ -110,6 +113,46 @@ class VideoDisplayWidget(QWidget):
     def get_current_frame(self) -> Optional[np.ndarray]:
         """Get the current video frame."""
         return self.current_frame.copy() if self.current_frame is not None else None
+
+    def save_screenshot_jpg(self, save_dir: str = "screenshoot") -> Optional[str]:
+        """Save the current frame as a JPG in the given directory.
+
+        Returns the saved file path on success, or None if no frame.
+        """
+        try:
+            frame = self.get_current_frame()
+            if frame is None:
+                self.logger.warning("No frame available to save")
+                # brief status overlay feedback
+                self.set_status_text("No frame to save", True)
+                QTimer.singleShot(1500, lambda: self.set_status_text("", False))
+                return None
+
+            # Ensure directory exists
+            os.makedirs(save_dir, exist_ok=True)
+
+            # Timestamp up to seconds
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"preview_{ts}.jpg"
+            path = os.path.join(save_dir, filename)
+
+            # Write JPG using OpenCV (frame assumed BGR)
+            success = cv2.imwrite(path, frame)
+            if success:
+                self.logger.info(f"Saved screenshot: {path}")
+                self.set_status_text(f"Saved: {filename}", True)
+                QTimer.singleShot(1500, lambda: self.set_status_text("", False))
+                return path
+            else:
+                self.logger.error(f"Failed to write screenshot: {path}")
+                self.set_status_text("Save failed", True)
+                QTimer.singleShot(1500, lambda: self.set_status_text("", False))
+                return None
+        except Exception as e:
+            self.logger.error(f"Error saving screenshot: {e}")
+            self.set_status_text("Error saving", True)
+            QTimer.singleShot(1500, lambda: self.set_status_text("", False))
+            return None
 
     def set_status_text(self, text: str, visible: bool = True):
         """Set the status text overlay."""

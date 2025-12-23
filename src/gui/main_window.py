@@ -178,6 +178,13 @@ class MainWindow(QMainWindow):
         self.stop_button.setEnabled(False)
         control_layout.addWidget(self.stop_button)
 
+        # Save preview button
+        self.save_button = QPushButton("Save Preview (JPG)")
+        self.save_button.setToolTip("Save current preview frame as JPG in 'screenshoot' directory")
+        self.save_button.clicked.connect(self.save_preview)
+        self.save_button.setEnabled(False)
+        control_layout.addWidget(self.save_button)
+
         control_layout.addStretch()
 
         main_layout.addWidget(control_panel)
@@ -449,6 +456,7 @@ class MainWindow(QMainWindow):
 
             self.start_button.setEnabled(False)
             self.stop_button.setEnabled(True)
+            self.save_button.setEnabled(True)
             self.status_bar.showMessage("Video running")
             self.logger.info("Video started")
 
@@ -462,11 +470,27 @@ class MainWindow(QMainWindow):
             self.video_display.stop_video()
             self.start_button.setEnabled(True)
             self.stop_button.setEnabled(False)
+            self.save_button.setEnabled(False)
             self.status_bar.showMessage("Video stopped")
             self.logger.info("Video stopped")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to stop video: {e}")
             self.logger.error(f"Failed to stop video: {e}")
+
+    def save_preview(self):
+        """Save the current preview frame as a JPG into 'screenshoot/'."""
+        try:
+            # Use project-local directory 'screenshoot'
+            import os
+            save_dir = os.path.join(os.getcwd(), "screenshoot")
+            path = self.video_display.save_screenshot_jpg(save_dir)
+            if path:
+                self.status_bar.showMessage(f"Saved preview: {path}")
+            else:
+                self.status_bar.showMessage("No frame to save or save failed")
+        except Exception as e:
+            self.logger.error(f"Error while saving preview: {e}")
+            QMessageBox.critical(self, "Save Error", f"Failed to save preview: {e}")
 
     def _on_brick_clicked(self, brick_id: str, click_pos: QPoint):
         """Handle brick click from video display - toggle detection status."""

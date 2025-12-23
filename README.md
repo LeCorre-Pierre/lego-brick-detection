@@ -27,6 +27,10 @@ Run the detection script: `python src/detect.py`
 
 python -m src.main --set-file ./data/sample_3005.csv --camera 0
 
+## Screenshots
+
+- Save current preview as JPG: Use the "Save Preview (JPG)" button in the GUI. Files are saved to the `screenshoot/` directory with timestamped names.
+
 ##Dataset 
 
 B200 LEGO Detection Dataset
@@ -48,3 +52,4 @@ Hex: Lego Computer Vision Dataset
 
     Dataset
     This dataset, curated with Roboflow, includes 8,320 images and over 15,000 annotations, capturing LEGO bricks in different configurations and lighting environments. Data augmentation techniques were applied to enhance robustness, covering 28 distinct LEGO brick classes.
+
