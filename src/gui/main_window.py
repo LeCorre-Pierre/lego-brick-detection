@@ -6,10 +6,10 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QFileDialog, QMessageBox, QDialog, QLabel, QListWidget, QListWidgetItem, QGroupBox
 )
-from PyQt6.QtCore import QPoint, QThread, pyqtSignal, Qt, QThread, pyqtSignal, QTimer
+from PyQt6.QtCore import QPoint, QThread, pyqtSignal, Qt, QTimer
 from PyQt6.QtGui import QAction, QColor
 import time
-
+import os
 import numpy as np
 
 from ..utils.logger import get_logger
@@ -19,6 +19,10 @@ from .camera_config_dialog import CameraConfigDialog
 from ..models.video_source import VideoSource
 from .video_display import VideoDisplayWidget
 from ..vision.camera_scanner import VideoSourceConfigurator
+from .detection_panel import DetectionPanel
+from ..vision.detection_engine import YOLOv8Engine
+from ..vision.model_loader import ModelLoaderThread
+from ..vision.detection_state import DetectionState
 
 logger = get_logger("main_window")
 
@@ -70,6 +74,9 @@ class MainWindow(QMainWindow):
         
     def _start_parallel_initialization(self):
         """Start all initialization threads in parallel."""
+        # 0. Model loading thread (detection engine)
+        self._start_model_loading()
+        
         # 1. Lego set loading thread
         if self.pending_set_file:
             self.set_loader = SetCSVLoader(self.pending_set_file)
@@ -85,6 +92,58 @@ class MainWindow(QMainWindow):
             self.video_configurator.error.connect(self._on_camera_error)
             self.video_configurator.progress.connect(self._on_init_progress)
             self.video_configurator.start()
+    
+    def _start_model_loading(self):
+        """Start YOLOv8 model loading in background thread."""
+        try:
+            model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../models")
+            # Look for .pt file in models directory
+            pt_files = [f for f in os.listdir(model_path) if f.endswith('.pt')]
+            
+            if pt_files:
+                model_file = os.path.join(model_path, pt_files[0])
+                self.logger.info(f"Found model: {model_file}")
+                
+                # Initialize detection engine
+                self.detection_engine = YOLOv8Engine()
+                self.detection_panel.set_loading()
+                
+                # Start model loading in background
+                self.model_loader = ModelLoaderThread(self.detection_engine, model_file)
+                self.model_loader.progress.connect(self._on_model_load_progress)
+                self.model_loader.finished.connect(self._on_model_loaded)
+                self.model_loader.error.connect(self._on_model_load_error)
+                self.model_loader.start()
+            else:
+                self.logger.warning("No YOLOv8 model (.pt) file found in models/ directory")
+                self.detection_engine = None
+                self.detection_panel.set_error("No model file found")
+                
+        except Exception as e:
+            self.logger.error(f"Error starting model loading: {e}")
+            self.detection_engine = None
+            self.detection_panel.set_error(str(e))
+    
+    def _on_model_load_progress(self, message: str):
+        """Handle model loading progress update."""
+        self.logger.info(f"Model load progress: {message}")
+        self.status_bar.showMessage(message)
+    
+    def _on_model_loaded(self, success: bool):
+        """Handle model loading completion."""
+        if success and self.detection_engine:
+            self.logger.info("Model loaded successfully")
+            self.detection_panel.set_ready()
+            self.status_bar.showMessage("Detection ready")
+        else:
+            self.logger.error("Model loading failed")
+            self.detection_panel.set_error("Model load failed")
+    
+    def _on_model_load_error(self, error_msg: str):
+        """Handle model loading error."""
+        self.logger.error(f"Model load error: {error_msg}")
+        self.detection_panel.set_error(error_msg)
+        QMessageBox.warning(self, "Model Load Error", f"Failed to load detection model:\n{error_msg}")
         
     def _on_init_progress(self, message: str):
         """Handle progress updates from initialization threads."""
@@ -146,6 +205,10 @@ class MainWindow(QMainWindow):
         # Set info panel at top
         self.set_info_panel = SetInfoPanel()
         main_layout.addWidget(self.set_info_panel)
+
+        # Detection panel (below set info)
+        self.detection_panel = DetectionPanel()
+        main_layout.addWidget(self.detection_panel)
 
         # Create horizontal layout for video and brick list
         content_layout = QHBoxLayout()
