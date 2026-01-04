@@ -2,7 +2,7 @@
 Data models for Lego Brick Detection application.
 """
 
-from typing import List, Optional
+from typing import List, Optional, Dict, Set
 from dataclasses import dataclass, field
 from .brick import Brick
 
@@ -53,3 +53,24 @@ class LegoSet:
             brick.found_quantity -= quantity
             return True
         return False
+    
+    def get_bricks_by_detection_status(self) -> Dict[str, List[Brick]]:
+        """Get bricks grouped by detection status."""
+        return {
+            'detected': [b for b in self.bricks if b.detected_in_current_frame],
+            'not_detected': [b for b in self.bricks if not b.detected_in_current_frame],
+            'manually_marked': [b for b in self.bricks if b.manually_marked],
+            'completed': [b for b in self.bricks if b.is_fully_found()]
+        }
+    
+    def update_detection_status(self, detected_part_numbers: Set[str], timestamp: float) -> None:
+        """Update detection status for all bricks based on current frame."""
+        for brick in self.bricks:
+            if brick.part_number in detected_part_numbers:
+                brick.set_detected(timestamp)
+            else:
+                brick.clear_detected()
+    
+    def get_detectable_bricks(self) -> List[Brick]:
+        """Get list of bricks that should be detected."""
+        return [b for b in self.bricks if b.should_be_detected()]
