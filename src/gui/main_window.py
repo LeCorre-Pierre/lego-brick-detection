@@ -4,7 +4,7 @@ Main window for Lego Brick Inventory application using PyQt6.
 
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QFileDialog, QMessageBox, QDialog, QLabel, QListWidget, QListWidgetItem, QGroupBox
+    QPushButton, QFileDialog, QMessageBox, QDialog, QLabel, QGroupBox
 )
 from PyQt6.QtCore import QPoint, QThread, pyqtSignal, Qt, QTimer
 from PyQt6.QtGui import QAction, QColor
@@ -171,8 +171,7 @@ class MainWindow(QMainWindow):
     def _on_set_loaded(self, lego_set):
         """Handle successful set loading."""
         self.current_set = lego_set
-        self.set_info_panel.load_set(lego_set)
-        self._update_brick_list()
+        self.set_info_panel.load_set(lego_set)  # This now automatically loads the BrickListWidget
         self.init_progress['set_loaded'] = True
         self.logger.info(f"Set loaded: {lego_set.name}")
         # Apply detection filter based on new set
@@ -232,19 +231,10 @@ class MainWindow(QMainWindow):
         self.detection_panel = DetectionPanel()
         main_layout.addWidget(self.detection_panel)
 
-        # Create horizontal layout for video and brick list
-        content_layout = QHBoxLayout()
-
-        # Video display in the center
+        # Video display (full width, brick list now integrated in SetInfoPanel above)
         self.video_display = VideoDisplayWidget()
         self.video_display.brick_clicked.connect(self._on_brick_clicked)
-        content_layout.addWidget(self.video_display)
-
-        # Brick list on the right (extracted from set_info_panel)
-        self.brick_list_panel = self._create_brick_list_panel()
-        content_layout.addWidget(self.brick_list_panel)
-
-        main_layout.addLayout(content_layout)
+        main_layout.addWidget(self.video_display)
 
         # Control buttons at bottom
         control_panel = QWidget()
@@ -283,107 +273,6 @@ class MainWindow(QMainWindow):
         
         # Connect video display frame signal for detection processing
         self.video_display.frame_processed.connect(self._process_frame_for_detection)
-
-    def _create_brick_list_panel(self):
-        """Create a separate panel for the brick list."""
-        from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
-
-        # Brick list group
-        brick_group = QGroupBox("Bricks in Set")
-        brick_layout = QVBoxLayout()
-
-        self.brick_list = QListWidget()
-        self.brick_list.itemChanged.connect(self._on_brick_list_changed)
-        brick_layout.addWidget(self.brick_list)
-
-        brick_group.setLayout(brick_layout)
-        brick_group.setFixedWidth(300)  # Fixed width for the brick list panel
-
-        return brick_group
-
-    def _on_brick_list_changed(self, item):
-        """Handle brick checkbox state change from the brick list."""
-        if self.current_set:
-            brick_id = item.data(Qt.ItemDataRole.UserRole)
-            if brick_id:
-                brick = self.current_set.get_brick_by_part_number(brick_id)
-                if brick:
-                    checked = item.checkState() == Qt.CheckState.Checked
-                    
-                    if checked and not brick.is_fully_found():
-                        # Mark as found if checkbox is checked and brick is not fully found
-                        if self.current_set.mark_brick_found(brick_id, brick.quantity - brick.found_quantity):
-                            self.logger.info(f"Marked brick {brick_id} as fully found via checkbox")
-                        else:
-                            self.logger.warning(f"Could not mark brick {brick_id} as found")
-                    elif not checked and brick.is_fully_found():
-                        # Unmark as found if checkbox is unchecked and brick is fully found
-                        if self.current_set.unmark_brick_found(brick_id, brick.found_quantity):
-                            self.logger.info(f"Unmarked brick {brick_id} as found via checkbox")
-                        else:
-                            self.logger.warning(f"Could not unmark brick {brick_id}")
-
-                    # Update UI
-                    self.set_info_panel.load_set(self.current_set)
-                    # Don't call _update_brick_list here to avoid recursion, just update the current item
-                    self._update_brick_list_item(item, brick)
-                else:
-                    self.logger.warning(f"Brick {brick_id} not found in current set")
-
-    def _update_brick_list(self):
-        """Update the brick list display with checkboxes and error recovery."""
-        try:
-            self.brick_list.clear()
-
-            if not self.current_set:
-                return
-
-            for brick in self.current_set.bricks:
-                # Create display text
-                text = f"{brick.name} ({brick.id}) - {brick.found_quantity}/{brick.quantity}"
-
-                item = QListWidgetItem(text)
-                item.setData(Qt.ItemDataRole.UserRole, brick.id)
-                item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-                
-                # Set checked state based on whether brick is fully found
-                if brick.is_fully_found():
-                    item.setCheckState(Qt.CheckState.Checked)
-                else:
-                    item.setCheckState(Qt.CheckState.Unchecked)
-
-                # Color coding
-                if brick.is_fully_found():
-                    item.setBackground(QColor(144, 238, 144))  # light green
-                elif brick.found_quantity > 0:
-                    item.setBackground(QColor(255, 255, 224))  # light yellow
-                else:
-                    item.setBackground(QColor(255, 255, 255))  # white
-
-                self.brick_list.addItem(item)
-        except Exception as e:
-            self.logger.error(f"Failed to update brick list: {e}")
-            # Don't show error dialog for UI updates, just log
-
-    def _update_brick_list_item(self, item, brick):
-        """Update a single brick list item."""
-        # Update display text
-        text = f"{brick.name} ({brick.id}) - {brick.found_quantity}/{brick.quantity}"
-        item.setText(text)
-        
-        # Update check state
-        if brick.is_fully_found():
-            item.setCheckState(Qt.CheckState.Checked)
-        else:
-            item.setCheckState(Qt.CheckState.Unchecked)
-        
-        # Update color coding
-        if brick.is_fully_found():
-            item.setBackground(QColor(144, 238, 144))  # light green
-        elif brick.found_quantity > 0:
-            item.setBackground(QColor(255, 255, 224))  # light yellow
-        else:
-            item.setBackground(QColor(255, 255, 255))  # white
 
     def setup_menus(self):
         """Setup application menus."""
@@ -495,8 +384,7 @@ class MainWindow(QMainWindow):
                 return
 
             self.current_set = lego_set
-            self.set_info_panel.load_set(lego_set)
-            self._update_brick_list()
+            self.set_info_panel.load_set(lego_set)  # This now automatically loads the BrickListWidget
             if self.current_video_source:
                 self.start_button.setEnabled(True)
             self.status_bar.showMessage(f"Loaded set: {lego_set.name}")
@@ -627,9 +515,8 @@ class MainWindow(QMainWindow):
                     else:
                         self.logger.warning(f"Could not mark brick {brick_id} as found")
 
-                # Update UI
+                # Update UI - SetInfoPanel.load_set will refresh the BrickListWidget
                 self.set_info_panel.load_set(self.current_set)
-                self._update_brick_list()
             else:
                 self.logger.warning(f"Brick {brick_id} not found in current set")
 
