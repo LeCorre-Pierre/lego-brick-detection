@@ -291,15 +291,81 @@ class BrickListWidget(QListWidget):
     
     def update_detection_status(self, detected_part_numbers: Set[str]) -> None:
         """
-        Update which bricks are currently detected (placeholder for Phase 6).
+        Update which bricks are currently detected.
+        Updates are batched and applied by timer to prevent UI flicker.
         
         Args:
             detected_part_numbers: Set of part numbers currently detected
         """
         self._state.pending_detections = detected_part_numbers
-        # Actual update will be applied by timer in Phase 6 (US3)
     
     def _apply_detection_updates(self) -> None:
-        """Apply batched detection updates (placeholder for Phase 6)."""
-        # Will be implemented in Phase 6 (US3)
-        pass
+        """Apply batched detection updates with list reordering."""
+        if not self.current_set or not self._state.pending_detections:
+            # Clear any existing detection states if no detections
+            if self._state.detected_bricks and not self._state.pending_detections:
+                self._state.detected_bricks.clear()
+                self._update_detection_icons()
+                self._reorder_list()
+            return
+        
+        # Check if detection state actually changed
+        if self._state.pending_detections == self._state.detected_bricks:
+            return
+        
+        # Update detected bricks set
+        self._state.detected_bricks = self._state.pending_detections.copy()
+        
+        # Reorder list (detected bricks to top) - this also updates icons
+        self._reorder_list()
+    
+    def _update_detection_icons(self) -> None:
+        """Update detection icon visibility for all brick items."""
+        for part_number, widget in self._brick_items.items():
+            is_detected = part_number in self._state.detected_bricks
+            widget.set_detection_status(is_detected)
+    
+    def _reorder_list(self) -> None:
+        """Reorder list with detected bricks at top, maintaining original order within groups."""
+        if not self.current_set:
+            return
+        
+        # Disable updates to prevent flicker
+        self.setUpdatesEnabled(False)
+        
+        try:
+            # Save scroll position
+            self._state.scroll_position = self.verticalScrollBar().value()
+            
+            # Create sorted brick list: detected first, then others
+            detected_bricks = []
+            non_detected_bricks = []
+            
+            for brick in self.current_set.bricks:
+                if brick.part_number in self._state.detected_bricks:
+                    detected_bricks.append(brick)
+                else:
+                    non_detected_bricks.append(brick)
+            
+            # Rebuild list
+            self.clear()
+            self._brick_items.clear()
+            
+            # Add detected bricks first
+            for brick in detected_bricks:
+                self._add_brick_item(brick)
+            
+            # Add non-detected bricks
+            for brick in non_detected_bricks:
+                self._add_brick_item(brick)
+            
+            # Update detection icons after rebuild
+            self._update_detection_icons()
+            
+            # Restore scroll position (but don't scroll if detected bricks are at top)
+            if not detected_bricks:
+                self.verticalScrollBar().setValue(self._state.scroll_position)
+        
+        finally:
+            # Re-enable updates
+            self.setUpdatesEnabled(True)

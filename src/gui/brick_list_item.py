@@ -33,6 +33,7 @@ class BrickListItem(QWidget):
         self.image_cache = image_cache
         self._is_complete = False
         self._is_manually_marked = False
+        self._is_detected = False
         
         self._setup_ui()
         self._update_display()
@@ -56,6 +57,23 @@ class BrickListItem(QWidget):
         self.manual_checkbox.setToolTip("Mark as found manually (excludes from detection)")
         self.manual_checkbox.toggled.connect(self._on_checkbox_toggled)
         layout.addWidget(self.manual_checkbox)
+        
+        # Detection icon (camera/eye icon)
+        self.detection_icon = QLabel()
+        self.detection_icon.setFixedSize(24, 24)
+        self.detection_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.detection_icon.setToolTip("Currently detected by camera")
+        self.detection_icon.setText("📷")  # Camera emoji as detection indicator
+        self.detection_icon.setStyleSheet("""
+            QLabel {
+                font-size: 16px;
+                background-color: #4CAF50;
+                border-radius: 12px;
+                padding: 2px;
+            }
+        """)
+        self.detection_icon.setVisible(False)  # Hidden by default
+        layout.addWidget(self.detection_icon)
         
         # Brick information (ID, name, quantity) in vertical layout
         info_layout = QVBoxLayout()
@@ -203,6 +221,11 @@ class BrickListItem(QWidget):
         else:
             # Remove all styling
             self.setStyleSheet("")
+    
+    def set_detection_status(self, is_detected: bool) -> None:
+        """Set the detection status and update icon visibility."""
+        self._is_detected = is_detected
+        self.detection_icon.setVisible(is_detected)
     
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """Handle mouse clicks for counter increment/decrement."""

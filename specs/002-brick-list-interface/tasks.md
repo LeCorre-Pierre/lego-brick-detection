@@ -139,16 +139,16 @@
 
 ### Implementation for User Story 3
 
-- [ ] T051 [P] [US3] Add detection icon label (QLabel with icon) to BrickListItem layout in src/gui/brick_list_item.py
-- [ ] T052 [US3] Implement set_detection_status(is_detected) method in src/gui/brick_list_item.py
-- [ ] T053 [US3] Add detection icon visibility toggle logic in src/gui/brick_list_item.py
-- [ ] T054 [US3] Initialize QTimer for detection update batching (100ms) in src/gui/brick_list_widget.py
-- [ ] T055 [US3] Implement update_detection_status(detected_part_numbers) method in src/gui/brick_list_widget.py
-- [ ] T056 [US3] Implement _apply_detection_updates() method for batched updates in src/gui/brick_list_widget.py
-- [ ] T057 [US3] Implement _reorder_list() method to move detected bricks to top in src/gui/brick_list_widget.py
-- [ ] T058 [US3] Add setUpdatesEnabled(False/True) to prevent flicker during reorder in src/gui/brick_list_widget.py
-- [ ] T059 [US3] Implement _update_detection_icons() helper method in src/gui/brick_list_widget.py
-- [ ] T060 [US3] Store and restore original list positions in BrickListState in src/gui/brick_list_widget.py
+- [X] T051 [P] [US3] Add detection icon label (QLabel with icon) to BrickListItem layout in src/gui/brick_list_item.py
+- [X] T052 [US3] Implement set_detection_status(is_detected) method in src/gui/brick_list_item.py
+- [X] T053 [US3] Add detection icon visibility toggle logic in src/gui/brick_list_item.py
+- [X] T054 [US3] Initialize QTimer for detection update batching (100ms) in src/gui/brick_list_widget.py
+- [X] T055 [US3] Implement update_detection_status(detected_part_numbers) method in src/gui/brick_list_widget.py
+- [X] T056 [US3] Implement _apply_detection_updates() method for batched updates in src/gui/brick_list_widget.py
+- [X] T057 [US3] Implement _reorder_list() method to move detected bricks to top in src/gui/brick_list_widget.py
+- [X] T058 [US3] Add setUpdatesEnabled(False/True) to prevent flicker during reorder in src/gui/brick_list_widget.py
+- [X] T059 [US3] Implement _update_detection_icons() helper method in src/gui/brick_list_widget.py
+- [X] T060 [US3] Store and restore original list positions in BrickListState in src/gui/brick_list_widget.py
 - [ ] T061 [US3] Add frame_processed signal to DetectionEngine in src/vision/detection_engine.py
 - [ ] T062 [US3] Emit detected_part_numbers set after frame processing in src/vision/detection_engine.py
 - [ ] T063 [US3] Connect DetectionEngine.frame_processed to BrickListWidget.update_detection_status in src/gui/main_window.py
