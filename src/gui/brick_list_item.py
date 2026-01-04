@@ -50,6 +50,7 @@ class BrickListItem(QWidget):
         self.preview_label.setFixedSize(48, 48)
         self.preview_label.setScaledContents(False)
         self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.preview_label.setToolTip("Brick preview image")
         layout.addWidget(self.preview_label)
         
         # Manual marking checkbox
@@ -108,6 +109,7 @@ class BrickListItem(QWidget):
         self.counter_label.setFont(counter_font)
         self.counter_label.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
         self.counter_label.setMinimumWidth(50)
+        self.counter_label.setToolTip("Left-click: add 1 | Right-click: remove 1")
         layout.addWidget(self.counter_label)
         
         # Required quantity label (right side)

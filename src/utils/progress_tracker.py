@@ -18,7 +18,7 @@ class ProgressTracker:
         self.current_set = None
         self.start_time = None
         self.last_activity = None
-        self.found_history = []  # List of (timestamp, brick_id) tuples
+        self.found_history = []  # List of (timestamp, brick_id, method) tuples where method is 'manual' or 'detected'
 
     def start_tracking(self, lego_set: LegoSet):
         """Start tracking progress for a Lego set."""
@@ -37,16 +37,22 @@ class ProgressTracker:
         self.start_time = None
         self.last_activity = None
 
-    def record_brick_found(self, brick_id: str):
-        """Record that a brick was found."""
+    def record_brick_found(self, brick_id: str, method: str = 'detected'):
+        """
+        Record that a brick was found.
+        
+        Args:
+            brick_id: The ID of the brick that was found
+            method: How the brick was found - 'manual' or 'detected'
+        """
         if not self.current_set:
             return
 
         timestamp = datetime.now()
-        self.found_history.append((timestamp, brick_id))
+        self.found_history.append((timestamp, brick_id, method))
         self.last_activity = timestamp
 
-        self.logger.debug(f"Recorded brick found: {brick_id}")
+        self.logger.debug(f"Recorded brick found: {brick_id} ({method})")
 
     def get_progress_stats(self) -> Dict:
         """Get current progress statistics."""
@@ -56,6 +62,10 @@ class ProgressTracker:
         total_bricks = self.current_set.total_bricks
         found_bricks = self.current_set.get_found_bricks_count()
         completion_percentage = (found_bricks / total_bricks * 100) if total_bricks > 0 else 0
+        
+        # Count manual vs detected finds
+        manual_finds = sum(1 for entry in self.found_history if len(entry) > 2 and entry[2] == 'manual')
+        detected_finds = sum(1 for entry in self.found_history if len(entry) > 2 and entry[2] == 'detected')
 
         stats = {
             'total_bricks': total_bricks,
@@ -63,6 +73,8 @@ class ProgressTracker:
             'remaining_bricks': total_bricks - found_bricks,
             'completion_percentage': completion_percentage,
             'is_complete': self.current_set.is_complete(),
+            'manual_finds': manual_finds,
+            'detected_finds': detected_finds,
             'bricks_found_today': self._get_bricks_found_in_last_24h(),
             'average_bricks_per_hour': self._get_average_bricks_per_hour(),
             'time_elapsed': self._get_time_elapsed(),
@@ -149,10 +161,14 @@ class ProgressTracker:
         recent = self.found_history[-limit:] if self.found_history else []
         activity = []
 
-        for timestamp, brick_id in recent:
+        for entry in recent:
+            timestamp, brick_id = entry[0], entry[1]
+            method = entry[2] if len(entry) > 2 else 'detected'  # Default to 'detected' for backward compatibility
+            
             activity.append({
                 'timestamp': timestamp.isoformat(),
                 'brick_id': brick_id,
+                'method': method,
                 'time_ago': self._format_time_ago(timestamp)
             })
 

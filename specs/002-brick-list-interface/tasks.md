@@ -161,12 +161,12 @@
 
 **Purpose**: Integrate BrickListWidget into existing SetInfoPanel and wire all connections
 
-- [ ] T064 Replace existing brick display in SetInfoPanel with BrickListWidget in src/gui/set_info_panel.py
-- [ ] T065 Update SetInfoPanel.load_set() to call brick_list_widget.load_set() in src/gui/set_info_panel.py
-- [ ] T066 Connect BrickListWidget.brick_counter_changed to progress update in src/gui/set_info_panel.py
-- [ ] T067 Connect BrickListWidget.brick_manually_marked to existing handlers in src/gui/set_info_panel.py
-- [ ] T068 Update ProgressTracker to track manual vs detected finds in src/utils/progress_tracker.py
-- [ ] T069 Verify detection scope filtering respects manually marked bricks in src/gui/set_info_panel.py
+- [X] T064 Replace existing brick display in SetInfoPanel with BrickListWidget in src/gui/set_info_panel.py
+- [X] T065 Update SetInfoPanel.load_set() to call brick_list_widget.load_set() in src/gui/set_info_panel.py
+- [X] T066 Connect BrickListWidget.brick_counter_changed to progress update in src/gui/set_info_panel.py
+- [X] T067 Connect BrickListWidget.brick_manually_marked to existing handlers in src/gui/set_info_panel.py
+- [X] T068 Update ProgressTracker to track manual vs detected finds in src/utils/progress_tracker.py
+- [X] T069 Verify detection scope filtering respects manually marked bricks in src/gui/set_info_panel.py
 
 ---
 
@@ -183,9 +183,9 @@
 - [ ] T076 [P] Test image loading with missing images (verify placeholders)
 - [ ] T077 [P] Test layout with very long brick names (verify text truncation)
 - [ ] T078 [P] Test manual marking interaction with detection (manual marking precedence)
-- [ ] T079 Add tooltips for detection icon, checkbox, and counter in src/gui/brick_list_item.py
-- [ ] T080 Fine-tune colors, fonts, and spacing for readability in src/gui/brick_list_item.py
-- [ ] T081 Add logging for key operations (load set, counter changes, detection updates) in src/gui/brick_list_widget.py
+- [X] T079 Add tooltips for detection icon, checkbox, and counter in src/gui/brick_list_item.py
+- [X] T080 Fine-tune colors, fonts, and spacing for readability in src/gui/brick_list_item.py
+- [X] T081 Add logging for key operations (load set, counter changes, detection updates) in src/gui/brick_list_widget.py
 - [ ] T082 [P] Performance test with 200+ brick set (verify smooth scrolling)
 - [ ] T083 [P] Memory profiling (verify image cache stays within bounds)
 - [ ] T084 [P] Verify detection latency < 500ms from frame to UI update

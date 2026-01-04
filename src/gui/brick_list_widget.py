@@ -298,6 +298,7 @@ class BrickListWidget(QListWidget):
             detected_part_numbers: Set of part numbers currently detected
         """
         self._state.pending_detections = detected_part_numbers
+        self.logger.debug(f"Detection update queued: {len(detected_part_numbers)} bricks")
     
     def _apply_detection_updates(self) -> None:
         """Apply batched detection updates with list reordering."""
@@ -305,6 +306,7 @@ class BrickListWidget(QListWidget):
             # Clear any existing detection states if no detections
             if self._state.detected_bricks and not self._state.pending_detections:
                 self._state.detected_bricks.clear()
+                self.logger.debug("Cleared all detections")
                 self._update_detection_icons()
                 self._reorder_list()
             return
@@ -315,6 +317,7 @@ class BrickListWidget(QListWidget):
         
         # Update detected bricks set
         self._state.detected_bricks = self._state.pending_detections.copy()
+        self.logger.debug(f"Applied detection updates: {len(self._state.detected_bricks)} bricks now detected")
         
         # Reorder list (detected bricks to top) - this also updates icons
         self._reorder_list()
