@@ -57,19 +57,19 @@
 
 ### Implementation for User Story 4
 
-- [ ] T014 [P] [US4] Create BrickListItem widget class in src/gui/brick_list_item.py
-- [ ] T015 [US4] Implement BrickListItem layout with preview image (QLabel 48x48) in src/gui/brick_list_item.py
-- [ ] T016 [US4] Add brick ID label (QLabel) to BrickListItem layout in src/gui/brick_list_item.py
-- [ ] T017 [US4] Add brick name label (QLabel) with text overflow handling to BrickListItem layout in src/gui/brick_list_item.py
-- [ ] T018 [US4] Add required quantity label to BrickListItem layout in src/gui/brick_list_item.py
-- [ ] T019 [US4] Implement set_brick(brick) method in BrickListItem in src/gui/brick_list_item.py
-- [ ] T020 [US4] Add image loading from ImageCache in BrickListItem in src/gui/brick_list_item.py
-- [ ] T021 [P] [US4] Create BrickListWidget class (QListWidget subclass) in src/gui/brick_list_widget.py
-- [ ] T022 [US4] Create internal BrickListState class for state management in src/gui/brick_list_widget.py
-- [ ] T023 [US4] Implement load_set(lego_set) method to populate list in src/gui/brick_list_widget.py
-- [ ] T024 [US4] Implement _add_brick_item(brick) helper method in src/gui/brick_list_widget.py
-- [ ] T025 [US4] Implement clear_list() method in src/gui/brick_list_widget.py
-- [ ] T026 [US4] Add consistent styling and spacing for list items in src/gui/brick_list_widget.py
+- [X] T014 [P] [US4] Create BrickListItem widget class in src/gui/brick_list_item.py
+- [X] T015 [US4] Implement BrickListItem layout with preview image (QLabel 48x48) in src/gui/brick_list_item.py
+- [X] T016 [US4] Add brick ID label (QLabel) to BrickListItem layout in src/gui/brick_list_item.py
+- [X] T017 [US4] Add brick name label (QLabel) with text overflow handling to BrickListItem layout in src/gui/brick_list_item.py
+- [X] T018 [US4] Add required quantity label to BrickListItem layout in src/gui/brick_list_item.py
+- [X] T019 [US4] Implement set_brick(brick) method in BrickListItem in src/gui/brick_list_item.py
+- [X] T020 [US4] Add image loading from ImageCache in BrickListItem in src/gui/brick_list_item.py
+- [X] T021 [P] [US4] Create BrickListWidget class (QListWidget subclass) in src/gui/brick_list_widget.py
+- [X] T022 [US4] Create internal BrickListState class for state management in src/gui/brick_list_widget.py
+- [X] T023 [US4] Implement load_set(lego_set) method to populate list in src/gui/brick_list_widget.py
+- [X] T024 [US4] Implement _add_brick_item(brick) helper method in src/gui/brick_list_widget.py
+- [X] T025 [US4] Implement clear_list() method in src/gui/brick_list_widget.py
+- [X] T026 [US4] Add consistent styling and spacing for list items in src/gui/brick_list_widget.py
 
 **Checkpoint**: User Story 4 complete - Users can view and identify all bricks in the loaded set
 
