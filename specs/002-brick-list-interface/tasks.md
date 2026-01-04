@@ -85,21 +85,21 @@
 
 ### Implementation for User Story 1
 
-- [ ] T027 [US1] Add counter display label (format: "X/Y") to BrickListItem in src/gui/brick_list_item.py
-- [ ] T028 [US1] Override mousePressEvent in BrickListItem for left/right click handling in src/gui/brick_list_item.py
-- [ ] T029 [US1] Add counter_incremented signal to BrickListItem in src/gui/brick_list_item.py
-- [ ] T030 [US1] Add counter_decremented signal to BrickListItem in src/gui/brick_list_item.py
-- [ ] T031 [US1] Implement update_counter_display(found_count, required_count) method in src/gui/brick_list_item.py
-- [ ] T032 [US1] Implement _apply_completion_highlight() method for green background in src/gui/brick_list_item.py
-- [ ] T033 [US1] Implement _remove_completion_highlight() method in src/gui/brick_list_item.py
-- [ ] T034 [US1] Add brick_counter_changed signal to BrickListWidget in src/gui/brick_list_widget.py
-- [ ] T035 [US1] Implement increment_brick_counter(part_number) method in src/gui/brick_list_widget.py
-- [ ] T036 [US1] Implement decrement_brick_counter(part_number) method in src/gui/brick_list_widget.py
-- [ ] T037 [US1] Connect BrickListItem counter signals to BrickListWidget handlers in src/gui/brick_list_widget.py
-- [ ] T038 [US1] Add counter validation (min 0, max required quantity) in src/gui/brick_list_widget.py
-- [ ] T039 [US1] Update Brick model found_quantity when counter changes in src/gui/brick_list_widget.py
-- [ ] T040 [US1] Implement get_current_progress() method returning (found, total) in src/gui/brick_list_widget.py
-- [ ] T041 [P] [US1] Create unit tests for counter logic in tests/unit/test_brick_list_logic.py
+- [X] T027 [US1] Add counter display label (format: "X/Y") to BrickListItem in src/gui/brick_list_item.py
+- [X] T028 [US1] Override mousePressEvent in BrickListItem for left/right click handling in src/gui/brick_list_item.py
+- [X] T029 [US1] Add counter_incremented signal to BrickListItem in src/gui/brick_list_item.py
+- [X] T030 [US1] Add counter_decremented signal to BrickListItem in src/gui/brick_list_item.py
+- [X] T031 [US1] Implement update_counter_display(found_count, required_count) method in src/gui/brick_list_item.py
+- [X] T032 [US1] Implement _apply_completion_highlight() method for green background in src/gui/brick_list_item.py
+- [X] T033 [US1] Implement _remove_completion_highlight() method in src/gui/brick_list_item.py
+- [X] T034 [US1] Add brick_counter_changed signal to BrickListWidget in src/gui/brick_list_widget.py
+- [X] T035 [US1] Implement increment_brick_counter(part_number) method in src/gui/brick_list_widget.py
+- [X] T036 [US1] Implement decrement_brick_counter(part_number) method in src/gui/brick_list_widget.py
+- [X] T037 [US1] Connect BrickListItem counter signals to BrickListWidget handlers in src/gui/brick_list_widget.py
+- [X] T038 [US1] Add counter validation (min 0, max required quantity) in src/gui/brick_list_widget.py
+- [X] T039 [US1] Update Brick model found_quantity when counter changes in src/gui/brick_list_widget.py
+- [X] T040 [US1] Implement get_current_progress() method returning (found, total) in src/gui/brick_list_widget.py
+- [X] T041 [P] [US1] Create unit tests for counter logic in tests/unit/test_brick_list_logic.py
 
 **Checkpoint**: User Story 1 complete - Users can manually track brick collection progress with visual feedback
 

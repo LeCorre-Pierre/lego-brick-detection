@@ -182,23 +182,87 @@ class BrickListWidget(QListWidget):
     
     def _on_counter_increment(self, part_number: str) -> None:
         """
-        Handle counter increment signal (placeholder for Phase 4).
+        Handle counter increment signal.
         
         Args:
             part_number: The brick part number
         """
-        self.logger.debug(f"Counter increment requested for {part_number}")
-        # Will be implemented in Phase 4 (US1)
+        self.increment_brick_counter(part_number)
     
     def _on_counter_decrement(self, part_number: str) -> None:
         """
-        Handle counter decrement signal (placeholder for Phase 4).
+        Handle counter decrement signal.
         
         Args:
             part_number: The brick part number
         """
-        self.logger.debug(f"Counter decrement requested for {part_number}")
-        # Will be implemented in Phase 4 (US1)
+        self.decrement_brick_counter(part_number)
+    
+    def increment_brick_counter(self, part_number: str) -> None:
+        """
+        Increment the found counter for a brick.
+        
+        Args:
+            part_number: The brick part number
+        """
+        if not self.current_set:
+            return
+        
+        # Find the brick
+        brick = next((b for b in self.current_set.bricks if b.part_number == part_number), None)
+        if not brick:
+            self.logger.warning(f"Brick {part_number} not found in current set")
+            return
+        
+        # Validate counter (max = required quantity)
+        if brick.found_quantity >= brick.quantity:
+            self.logger.debug(f"Brick {part_number} already at maximum count")
+            return
+        
+        # Increment counter
+        brick.found_quantity += 1
+        self.logger.debug(f"Incremented {part_number}: {brick.found_quantity}/{brick.quantity}")
+        
+        # Update display
+        widget = self._brick_items.get(part_number)
+        if widget:
+            widget.update_counter_display(brick.found_quantity, brick.quantity)
+        
+        # Emit signal
+        self.brick_counter_changed.emit(part_number, brick.found_quantity)
+    
+    def decrement_brick_counter(self, part_number: str) -> None:
+        """
+        Decrement the found counter for a brick.
+        
+        Args:
+            part_number: The brick part number
+        """
+        if not self.current_set:
+            return
+        
+        # Find the brick
+        brick = next((b for b in self.current_set.bricks if b.part_number == part_number), None)
+        if not brick:
+            self.logger.warning(f"Brick {part_number} not found in current set")
+            return
+        
+        # Validate counter (min = 0)
+        if brick.found_quantity <= 0:
+            self.logger.debug(f"Brick {part_number} already at minimum count")
+            return
+        
+        # Decrement counter
+        brick.found_quantity -= 1
+        self.logger.debug(f"Decremented {part_number}: {brick.found_quantity}/{brick.quantity}")
+        
+        # Update display
+        widget = self._brick_items.get(part_number)
+        if widget:
+            widget.update_counter_display(brick.found_quantity, brick.quantity)
+        
+        # Emit signal
+        self.brick_counter_changed.emit(part_number, brick.found_quantity)
     
     def update_detection_status(self, detected_part_numbers: Set[str]) -> None:
         """

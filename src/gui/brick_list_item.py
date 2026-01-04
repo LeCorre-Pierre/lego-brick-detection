@@ -5,7 +5,7 @@ Displays brick information including preview image, ID, name, and quantity.
 
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QSizePolicy
 from PyQt6.QtCore import Qt, pyqtSignal, QSize
-from PyQt6.QtGui import QPixmap, QFont
+from PyQt6.QtGui import QPixmap, QFont, QMouseEvent
 from typing import Optional
 from ..models.brick import Brick
 from ..utils.image_cache import ImageCache
@@ -14,10 +14,10 @@ from ..utils.image_cache import ImageCache
 class BrickListItem(QWidget):
     """Custom widget for displaying individual brick information in a list."""
     
-    # Signals (will be extended in later phases)
-    counter_incremented = pyqtSignal()
-    counter_decremented = pyqtSignal()
-    manually_marked_changed = pyqtSignal(bool)
+    # Signals
+    counter_incremented = pyqtSignal()  # Emitted when left-clicked
+    counter_decremented = pyqtSignal()  # Emitted when right-clicked
+    manually_marked_changed = pyqtSignal(bool)  # Will be used in Phase 5
     
     def __init__(self, brick: Brick, image_cache: ImageCache, parent=None):
         """
@@ -31,6 +31,7 @@ class BrickListItem(QWidget):
         super().__init__(parent)
         self.brick = brick
         self.image_cache = image_cache
+        self._is_complete = False
         
         self._setup_ui()
         self._update_display()
@@ -74,6 +75,16 @@ class BrickListItem(QWidget):
         info_layout.addStretch()
         layout.addLayout(info_layout, stretch=1)
         
+        # Counter display label (format: "X/Y")
+        self.counter_label = QLabel()
+        counter_font = QFont()
+        counter_font.setPointSize(10)
+        counter_font.setBold(True)
+        self.counter_label.setFont(counter_font)
+        self.counter_label.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
+        self.counter_label.setMinimumWidth(50)
+        layout.addWidget(self.counter_label)
+        
         # Required quantity label (right side)
         self.quantity_label = QLabel()
         quantity_font = QFont()
@@ -105,6 +116,9 @@ class BrickListItem(QWidget):
         
         # Display required quantity
         self.quantity_label.setText(f"Need: {self.brick.quantity}")
+        
+        # Display counter
+        self.update_counter_display(self.brick.found_quantity, self.brick.quantity)
     
     def set_brick(self, brick: Brick) -> None:
         """
@@ -124,6 +138,41 @@ class BrickListItem(QWidget):
             The brick's part number
         """
         return self.brick.part_number
+    
+    def update_counter_display(self, found_count: int, required_count: int) -> None:
+        """Update the counter display and apply completion highlighting."""
+        self.counter_label.setText(f"{found_count}/{required_count}")
+        
+        # Apply or remove completion highlight
+        if found_count >= required_count:
+            if not self._is_complete:
+                self._apply_completion_highlight()
+                self._is_complete = True
+        else:
+            if self._is_complete:
+                self._remove_completion_highlight()
+                self._is_complete = False
+    
+    def _apply_completion_highlight(self) -> None:
+        """Apply green highlight to indicate brick collection is complete."""
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #c8e6c9;
+            }
+        """)
+    
+    def _remove_completion_highlight(self) -> None:
+        """Remove completion highlight."""
+        self.setStyleSheet("")
+    
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        """Handle mouse clicks for counter increment/decrement."""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.counter_incremented.emit()
+        elif event.button() == Qt.MouseButton.RightButton:
+            self.counter_decremented.emit()
+        
+        super().mousePressEvent(event)
     
     def sizeHint(self) -> QSize:
         """Return the recommended size for this widget."""
