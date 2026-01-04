@@ -9,7 +9,6 @@ from typing import Optional
 from ..models.lego_set import LegoSet
 from ..utils.logger import get_logger
 from ..utils.progress_tracker import ProgressTracker
-from .brick_list_widget import BrickListWidget
 
 logger = get_logger("set_info_panel")
 
@@ -74,18 +73,6 @@ class SetInfoPanel(QWidget):
 
         scope_group.setLayout(scope_layout)
         layout.addWidget(scope_group)
-        
-        # Brick list widget
-        bricks_group = QGroupBox("Brick List")
-        bricks_layout = QVBoxLayout()
-        
-        self.brick_list_widget = BrickListWidget()
-        self.brick_list_widget.brick_counter_changed.connect(self._on_brick_counter_changed)
-        self.brick_list_widget.brick_manually_marked.connect(self._on_brick_manually_marked)
-        bricks_layout.addWidget(self.brick_list_widget)
-        
-        bricks_group.setLayout(bricks_layout)
-        layout.addWidget(bricks_group)
 
         self.setLayout(layout)
 
@@ -100,9 +87,6 @@ class SetInfoPanel(QWidget):
         total_bricks = len(lego_set.bricks)
         total_quantity = sum(brick.quantity for brick in lego_set.bricks)
         self.set_stats_label.setText(f"{total_bricks} brick types, {total_quantity} total pieces")
-        
-        # Load bricks into list widget
-        self.brick_list_widget.load_set(lego_set)
 
         # Update progress
         self._update_progress()
@@ -110,7 +94,6 @@ class SetInfoPanel(QWidget):
     def clear_set(self):
         """Clear the current set display."""
         self.current_set = None
-        self.brick_list_widget.clear_list()
         self.set_name_label.setText("No set loaded")
         self.set_stats_label.setText("")
         self.progress_bar.setValue(0)
@@ -195,16 +178,3 @@ class SetInfoPanel(QWidget):
         self.logger.info(f"Brick {part_number} manually marked: {is_marked}")
         # Note: Manually marked bricks should be excluded from detection scope
         # This will be handled by detection engine filtering
-    
-    def update_detected_bricks(self, detected_part_numbers: set):
-        """Update which bricks are currently detected."""
-        if not self.current_set:
-            return
-        
-        # Filter out manually marked bricks from detection
-        filtered_detections = {
-            pn for pn in detected_part_numbers
-            if not any(b.manually_marked for b in self.current_set.bricks if b.part_number == pn)
-        }
-        
-        self.brick_list_widget.update_detection_status(filtered_detections)

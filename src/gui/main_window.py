@@ -171,7 +171,8 @@ class MainWindow(QMainWindow):
     def _on_set_loaded(self, lego_set):
         """Handle successful set loading."""
         self.current_set = lego_set
-        self.set_info_panel.load_set(lego_set)  # This now automatically loads the BrickListWidget
+        self.set_info_panel.load_set(lego_set)
+        self.brick_list_widget.load_set(lego_set)  # Load into brick list widget
         self.init_progress['set_loaded'] = True
         self.logger.info(f"Set loaded: {lego_set.name}")
         # Apply detection filter based on new set
@@ -231,10 +232,19 @@ class MainWindow(QMainWindow):
         self.detection_panel = DetectionPanel()
         main_layout.addWidget(self.detection_panel)
 
-        # Video display (full width, brick list now integrated in SetInfoPanel above)
+        # Create horizontal layout for video and brick list
+        content_layout = QHBoxLayout()
+
+        # Video display on the left
         self.video_display = VideoDisplayWidget()
         self.video_display.brick_clicked.connect(self._on_brick_clicked)
-        main_layout.addWidget(self.video_display)
+        content_layout.addWidget(self.video_display, stretch=3)
+
+        # Brick list on the right
+        self.brick_list_panel = self._create_brick_list_panel()
+        content_layout.addWidget(self.brick_list_panel, stretch=1)
+
+        main_layout.addLayout(content_layout)
 
         # Control buttons at bottom
         control_panel = QWidget()
@@ -273,6 +283,51 @@ class MainWindow(QMainWindow):
         
         # Connect video display frame signal for detection processing
         self.video_display.frame_processed.connect(self._process_frame_for_detection)
+
+    def _create_brick_list_panel(self):
+        """Create the brick list panel with new BrickListWidget."""
+        from .brick_list_widget import BrickListWidget
+        
+        brick_group = QGroupBox("Brick List")
+        brick_layout = QVBoxLayout()
+        
+        self.brick_list_widget = BrickListWidget()
+        # Connect signals to SetInfoPanel handlers
+        self.brick_list_widget.brick_counter_changed.connect(self._on_brick_counter_changed)
+        self.brick_list_widget.brick_manually_marked.connect(self._on_brick_manually_marked)
+        brick_layout.addWidget(self.brick_list_widget)
+        
+        brick_group.setLayout(brick_layout)
+        brick_group.setMinimumWidth(350)  # Minimum width for brick list
+        brick_group.setMaximumWidth(500)  # Maximum width to prevent excessive expansion
+        
+        return brick_group
+    
+    def _on_brick_counter_changed(self, part_number: str, new_count: int):
+        """Handle counter changes from brick list."""
+        if self.current_set and hasattr(self.set_info_panel, 'progress_tracker'):
+            # Record as manual find when counter is incremented
+            if new_count > 0:
+                self.set_info_panel.progress_tracker.record_brick_found(part_number, method='manual')
+            self.set_info_panel._update_progress()
+            self.logger.debug(f"Brick {part_number} counter changed to {new_count}")
+    
+    def _on_brick_manually_marked(self, part_number: str, is_marked: bool):
+        """Handle manual marking changes from brick list."""
+        self.logger.info(f"Brick {part_number} manually marked: {is_marked}")
+    
+    def update_detected_bricks(self, detected_part_numbers: set):
+        """Update which bricks are currently detected in the brick list."""
+        if not self.current_set:
+            return
+        
+        # Filter out manually marked bricks from detection
+        filtered_detections = {
+            pn for pn in detected_part_numbers
+            if not any(b.manually_marked for b in self.current_set.bricks if b.part_number == pn)
+        }
+        
+        self.brick_list_widget.update_detection_status(filtered_detections)
 
     def setup_menus(self):
         """Setup application menus."""
@@ -384,7 +439,8 @@ class MainWindow(QMainWindow):
                 return
 
             self.current_set = lego_set
-            self.set_info_panel.load_set(lego_set)  # This now automatically loads the BrickListWidget
+            self.set_info_panel.load_set(lego_set)
+            self.brick_list_widget.load_set(lego_set)  # Load into brick list widget
             if self.current_video_source:
                 self.start_button.setEnabled(True)
             self.status_bar.showMessage(f"Loaded set: {lego_set.name}")
@@ -515,8 +571,9 @@ class MainWindow(QMainWindow):
                     else:
                         self.logger.warning(f"Could not mark brick {brick_id} as found")
 
-                # Update UI - SetInfoPanel.load_set will refresh the BrickListWidget
+                # Update UI - refresh both SetInfoPanel and BrickListWidget
                 self.set_info_panel.load_set(self.current_set)
+                self.brick_list_widget.load_set(self.current_set)
             else:
                 self.logger.warning(f"Brick {brick_id} not found in current set")
 
