@@ -29,6 +29,7 @@ class BrickListItem(QWidget):
             parent: Parent widget
         """
         super().__init__(parent)
+        self.setObjectName("brick_item")  # Set object name for stylesheet targeting
         self.brick = brick
         self.image_cache = image_cache
         self._is_complete = False
@@ -183,7 +184,7 @@ class BrickListItem(QWidget):
     def _apply_completion_highlight(self) -> None:
         """Apply green highlight to indicate brick collection is complete."""
         self.setStyleSheet("""
-            BrickListItem {
+            QWidget#brick_item {
                 background-color: #c8e6c9;
             }
         """)
@@ -209,7 +210,7 @@ class BrickListItem(QWidget):
         if self._is_manually_marked:
             # Gray out entire row and italicize text for manually marked bricks
             self.setStyleSheet("""
-                BrickListItem {
+                QWidget#brick_item {
                     background-color: #f0f0f0;
                 }
                 QLabel {
