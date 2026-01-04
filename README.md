@@ -84,13 +84,6 @@ Hex: Lego Computer Vision Dataset
     Dataset
     This dataset, curated with Roboflow, includes 8,320 images and over 15,000 annotations, capturing LEGO bricks in different configurations and lighting environments. Data augmentation techniques were applied to enhance robustness, covering 28 distinct LEGO brick classes.
 
-/speckit.specify
+/speckit.plan
 
-The interface containing the list of bricks "Bricks in Set" permits to easily identify the bricks from the loaded set. 
-Each brick is listed with a preview image, a checkbox, a pictograms for detection, id, name, and the number of bricks required to complete the set.
-The preview image is the same size of the line height to ensure a compact and organized layout.
-The checkbox permits to indicate the bricks have been found manually by the user and the model does not need to detect them. This feature is useful when the user picks up the bricks physically and wants to mark them as found in the interface.
-The detection pictogram indicates if the bricks is detected by the model in the current video frame. It provides visual feedback to the user about the detection status of each brick.
-The id and name columns provide essential information about each brick, allowing users to easily identify and differentiate between various bricks in the set.
-On top of that, left clicking on an element of the list increase the counter of bricks required to complete the set. This feature is useful to track the gathering progress of a Lego set. On start each brick counter is initialized to zero. When reached the required number of bricks, the list element is highlighted in green. on right click the counter is decreased by one, until zero.
-A small preview image of the brick is displayed on the left side of the list to easily identify the brick visually based on its id. When a brick is detected by the model, the corresponding brick in the list is highlighted with a relevant pictogram to provide visual feedback to the user. It is also moved to the top of the list to increase its visibility. This feature helps users quickly identify which bricks have been detected, enhancing the overall user experience.
+The format of the preview image is png. 
