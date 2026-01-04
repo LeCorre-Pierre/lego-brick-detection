@@ -150,12 +150,15 @@ class BrickListWidget(QListWidget):
         # Set widget for item
         self.setItemWidget(item, widget)
         
-        # Connect signals (will be extended in later phases)
+        # Connect signals
         widget.counter_incremented.connect(
             lambda pn=brick.part_number: self._on_counter_increment(pn)
         )
         widget.counter_decremented.connect(
             lambda pn=brick.part_number: self._on_counter_decrement(pn)
+        )
+        widget.manually_marked_changed.connect(
+            lambda is_marked, pn=brick.part_number: self._on_manual_marked(pn, is_marked)
         )
     
     def clear_list(self) -> None:
@@ -263,6 +266,28 @@ class BrickListWidget(QListWidget):
         
         # Emit signal
         self.brick_counter_changed.emit(part_number, brick.found_quantity)
+    
+    def _on_manual_marked(self, part_number: str, is_marked: bool) -> None:
+        """Handle manual marking checkbox change."""
+        if not self.current_set:
+            return
+        
+        # Find the brick
+        brick = next((b for b in self.current_set.bricks if b.part_number == part_number), None)
+        if not brick:
+            self.logger.warning(f"Brick {part_number} not found in current set")
+            return
+        
+        # Update brick model
+        if is_marked:
+            brick.mark_as_manually_found()
+            self.logger.info(f"Brick {part_number} marked as manually found")
+        else:
+            brick.unmark_manually_found()
+            self.logger.info(f"Brick {part_number} unmarked from manual")
+        
+        # Emit signal
+        self.brick_manually_marked.emit(part_number, is_marked)
     
     def update_detection_status(self, detected_part_numbers: Set[str]) -> None:
         """

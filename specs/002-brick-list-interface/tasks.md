@@ -115,15 +115,15 @@
 
 ### Implementation for User Story 2
 
-- [ ] T042 [P] [US2] Add checkbox (QCheckBox) to BrickListItem layout in src/gui/brick_list_item.py
-- [ ] T043 [US2] Add manually_marked_changed signal to BrickListItem in src/gui/brick_list_item.py
-- [ ] T044 [US2] Connect checkbox toggled signal to manually_marked_changed in src/gui/brick_list_item.py
-- [ ] T045 [US2] Implement set_manual_marking(is_marked) method in src/gui/brick_list_item.py
-- [ ] T046 [US2] Add visual styling for manually marked bricks in src/gui/brick_list_item.py
-- [ ] T047 [US2] Add brick_manually_marked signal to BrickListWidget in src/gui/brick_list_widget.py
-- [ ] T048 [US2] Implement _on_manual_marked(part_number, is_marked) handler in src/gui/brick_list_widget.py
-- [ ] T049 [US2] Update Brick.manually_marked property when checkbox changes in src/gui/brick_list_widget.py
-- [ ] T050 [US2] Connect BrickListItem manually_marked signal to BrickListWidget handler in src/gui/brick_list_widget.py
+- [X] T042 [P] [US2] Add checkbox (QCheckBox) to BrickListItem layout in src/gui/brick_list_item.py
+- [X] T043 [US2] Add manually_marked_changed signal to BrickListItem in src/gui/brick_list_item.py
+- [X] T044 [US2] Connect checkbox toggled signal to manually_marked_changed in src/gui/brick_list_item.py
+- [X] T045 [US2] Implement set_manual_marking(is_marked) method in src/gui/brick_list_item.py
+- [X] T046 [US2] Add visual styling for manually marked bricks in src/gui/brick_list_item.py
+- [X] T047 [US2] Add brick_manually_marked signal to BrickListWidget in src/gui/brick_list_widget.py
+- [X] T048 [US2] Implement _on_manual_marked(part_number, is_marked) handler in src/gui/brick_list_widget.py
+- [X] T049 [US2] Update Brick.manually_marked property when checkbox changes in src/gui/brick_list_widget.py
+- [X] T050 [US2] Connect BrickListItem manually_marked signal to BrickListWidget handler in src/gui/brick_list_widget.py
 
 **Checkpoint**: User Story 2 complete - Users can manually mark bricks and exclude them from detection
 

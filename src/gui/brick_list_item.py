@@ -3,7 +3,7 @@ Custom widget for individual brick entries in the brick list.
 Displays brick information including preview image, ID, name, and quantity.
 """
 
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QSizePolicy
+from PyQt6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QSizePolicy, QCheckBox
 from PyQt6.QtCore import Qt, pyqtSignal, QSize
 from PyQt6.QtGui import QPixmap, QFont, QMouseEvent
 from typing import Optional
@@ -17,7 +17,7 @@ class BrickListItem(QWidget):
     # Signals
     counter_incremented = pyqtSignal()  # Emitted when left-clicked
     counter_decremented = pyqtSignal()  # Emitted when right-clicked
-    manually_marked_changed = pyqtSignal(bool)  # Will be used in Phase 5
+    manually_marked_changed = pyqtSignal(bool)  # Emitted when checkbox toggled
     
     def __init__(self, brick: Brick, image_cache: ImageCache, parent=None):
         """
@@ -32,6 +32,7 @@ class BrickListItem(QWidget):
         self.brick = brick
         self.image_cache = image_cache
         self._is_complete = False
+        self._is_manually_marked = False
         
         self._setup_ui()
         self._update_display()
@@ -49,6 +50,12 @@ class BrickListItem(QWidget):
         self.preview_label.setScaledContents(False)
         self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.preview_label)
+        
+        # Manual marking checkbox
+        self.manual_checkbox = QCheckBox()
+        self.manual_checkbox.setToolTip("Mark as found manually (excludes from detection)")
+        self.manual_checkbox.toggled.connect(self._on_checkbox_toggled)
+        layout.addWidget(self.manual_checkbox)
         
         # Brick information (ID, name, quantity) in vertical layout
         info_layout = QVBoxLayout()
@@ -164,6 +171,38 @@ class BrickListItem(QWidget):
     def _remove_completion_highlight(self) -> None:
         """Remove completion highlight."""
         self.setStyleSheet("")
+    
+    def _on_checkbox_toggled(self, checked: bool) -> None:
+        """Handle manual marking checkbox toggle."""
+        self._is_manually_marked = checked
+        self._apply_manual_marking_style()
+        self.manually_marked_changed.emit(checked)
+    
+    def set_manual_marking(self, is_marked: bool) -> None:
+        """Set the manual marking state programmatically."""
+        self._is_manually_marked = is_marked
+        self.manual_checkbox.setChecked(is_marked)
+        self._apply_manual_marking_style()
+    
+    def _apply_manual_marking_style(self) -> None:
+        """Apply visual styling for manually marked bricks."""
+        if self._is_manually_marked:
+            # Gray out and italicize for manually marked bricks
+            self.setStyleSheet("""
+                QWidget {
+                    background-color: #f0f0f0;
+                }
+                QLabel {
+                    color: #888888;
+                    font-style: italic;
+                }
+            """)
+        elif self._is_complete:
+            # Restore completion highlight if complete
+            self._apply_completion_highlight()
+        else:
+            # Remove all styling
+            self.setStyleSheet("")
     
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """Handle mouse clicks for counter increment/decrement."""
