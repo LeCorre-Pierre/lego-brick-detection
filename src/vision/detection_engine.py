@@ -2,6 +2,7 @@
 
 import os
 from typing import List, Optional, Tuple
+from numpy.typing import NDArray
 import numpy as np
 import torch
 from ..utils.logger import get_logger
@@ -54,6 +55,19 @@ class YOLOv8Engine:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self._fallback_attempted = False  # Track CUDA→CPU fallback attempts
         logger.info(f"YOLOv8Engine initialized (threshold={confidence_threshold}, device={self.device})")
+
+    def set_confidence_threshold(self, threshold: float) -> None:
+        """Update the confidence threshold used for filtering detections.
+
+        Args:
+            threshold: Value between 0.0 and 1.0.
+        """
+        try:
+            t = max(0.0, min(1.0, float(threshold)))
+            self.confidence_threshold = t
+            logger.info(f"Detection confidence threshold set -> {t:.2f}")
+        except Exception as e:
+            logger.error(f"Failed to set confidence threshold: {e}")
 
     def set_allowed_class_names(self, names: Optional[set[str]]):
         """Set allowed class names for filtering detections.
@@ -121,7 +135,7 @@ class YOLOv8Engine:
             self.state_manager.set_state(DetectionState.ERROR, error_msg)
             return False
 
-    def infer(self, frame: np.ndarray) -> List[Detection]:
+    def infer(self, frame: NDArray[np.uint8]) -> List[Detection]:
         """Run inference on a frame.
         
         Args:

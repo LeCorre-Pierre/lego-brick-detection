@@ -79,13 +79,19 @@ class VideoDisplayWidget(QWidget):
             return False
 
     def stop_video(self):
-        """Stop video capture and display."""
+        """Stop video capture and keep the last displayed frame frozen."""
         self.is_playing = False
         self.timer.stop()
         self.video_manager.close()
-        self.video_label.setPixmap(QPixmap())  # Clear display
-        self.video_label.setText("Video stopped")
-        self.logger.info("Video display stopped")
+        # Keep the last pixmap to allow parameter tuning on a static image
+        if self.current_frame is not None:
+            qimage = convert_frame_to_qimage(self.current_frame)
+            if qimage is not None:
+                self.video_label.setPixmap(QPixmap.fromImage(qimage))
+        # Provide subtle overlay feedback
+        self.set_status_text("Preview frozen (video stopped)", True)
+        QTimer.singleShot(2000, lambda: self.set_status_text("", False))
+        self.logger.info("Video display stopped (frozen last frame)")
 
     def _update_frame(self):
         """Update the displayed frame."""
@@ -101,33 +107,33 @@ class VideoDisplayWidget(QWidget):
         # Store current frame
         self.current_frame = frame.copy()
 
-        # Emit signal for processing
+        # Emit signal for processing (detection will handle display if active)
         self.frame_processed.emit(frame)
 
-        # Convert to QImage and display
-        qimage = convert_frame_to_qimage(frame)
-        if qimage is not None:
-            pixmap = QPixmap.fromImage(qimage)
-            self.video_label.setPixmap(pixmap)
+        # Note: If detection is active, _process_frame_for_detection will update the display
+        # with annotated frames. We don't display here to avoid overwriting the annotations.
 
     def get_current_frame(self) -> Optional[np.ndarray]:
         """Get the current video frame."""
         return self.current_frame.copy() if self.current_frame is not None else None
 
     def save_screenshot_jpg(self, save_dir: str = "screenshoot") -> Optional[str]:
-        """Save the current frame as a JPG in the given directory.
+        """Save the current displayed frame (with overlays) as a JPG in the given directory.
 
         Returns the saved file path on success, or None if no frame.
         """
         try:
-            frame = self.get_current_frame()
-            if frame is None:
-                self.logger.warning("No frame available to save")
-                # brief status overlay feedback
+            # Get the current displayed pixmap (includes any overlays/annotations)
+            pixmap = self.video_label.pixmap()
+            if pixmap is None or pixmap.isNull():
+                self.logger.warning("No frame displayed to save")
                 self.set_status_text("No frame to save", True)
                 QTimer.singleShot(1500, lambda: self.set_status_text("", False))
                 return None
 
+            # Convert QPixmap to QImage
+            qimage = pixmap.toImage()
+            
             # Ensure directory exists
             os.makedirs(save_dir, exist_ok=True)
 
@@ -136,10 +142,10 @@ class VideoDisplayWidget(QWidget):
             filename = f"preview_{ts}.jpg"
             path = os.path.join(save_dir, filename)
 
-            # Write JPG using OpenCV (frame assumed BGR)
-            success = cv2.imwrite(path, frame)
+            # Save the QImage as JPG
+            success = qimage.save(path, "JPG", quality=95)
             if success:
-                self.logger.info(f"Saved screenshot: {path}")
+                self.logger.info(f"Saved screenshot with overlays: {path}")
                 self.set_status_text(f"Saved: {filename}", True)
                 QTimer.singleShot(1500, lambda: self.set_status_text("", False))
                 return path

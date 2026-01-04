@@ -135,10 +135,27 @@ class MainWindow(QMainWindow):
         if success and self.detection_engine:
             self.logger.info("Model loaded successfully")
             self.detection_panel.set_ready()
+            # Apply current threshold to engine and UI
+            try:
+                self._reset_threshold()
+            except Exception as e:
+                self.logger.error(f"Failed to apply default threshold: {e}")
+            # Enable detection menu actions
+            try:
+                self.detect_scope_action.setEnabled(True)
+                self.reset_threshold_action.setEnabled(True)
+            except Exception:
+                pass
             self.status_bar.showMessage("Detection ready")
         else:
             self.logger.error("Model loading failed")
             self.detection_panel.set_error("Model load failed")
+            # Disable detection menu actions
+            try:
+                self.detect_scope_action.setEnabled(False)
+                self.reset_threshold_action.setEnabled(False)
+            except Exception:
+                pass
     
     def _on_model_load_error(self, error_msg: str):
         """Handle model loading error."""
@@ -261,6 +278,8 @@ class MainWindow(QMainWindow):
 
         # Connect detection panel signals
         self.detection_panel.detection_toggled.connect(self._on_detection_toggled)
+        self.detection_panel.threshold_changed.connect(self._on_threshold_changed)
+        self.detection_panel.state_changed.connect(self._on_detection_state_changed)
         
         # Connect video display frame signal for detection processing
         self.video_display.frame_processed.connect(self._process_frame_for_detection)
@@ -410,6 +429,28 @@ class MainWindow(QMainWindow):
         help_action.triggered.connect(self.show_help)
         help_menu.addAction(help_action)
 
+        # Detection menu
+        detection_menu = menubar.addMenu('Detection')
+
+        # Scope: only set classes
+        self.detect_scope_action = QAction('Detect Only Set Classes', self)
+        self.detect_scope_action.setCheckable(True)
+        # Default mirrors current flag
+        if hasattr(self, 'detect_only_set_classes'):
+            self.detect_scope_action.setChecked(self.detect_only_set_classes)
+        self.detect_scope_action.toggled.connect(self._on_detect_scope_menu_toggled)
+        detection_menu.addAction(self.detect_scope_action)
+
+        # Reset threshold to default (50%)
+        self.reset_threshold_action = QAction('Reset Threshold to 50%', self)
+        self.reset_threshold_action.setToolTip('Set detection confidence threshold to 50%')
+        self.reset_threshold_action.triggered.connect(lambda: self._reset_threshold())
+        detection_menu.addAction(self.reset_threshold_action)
+
+        # Initially disable detection-menu actions until model is ready
+        self.detect_scope_action.setEnabled(False)
+        self.reset_threshold_action.setEnabled(False)
+
     def setup_status_bar(self):
         """Setup status bar."""
         self.status_bar = self.statusBar()
@@ -544,8 +585,10 @@ class MainWindow(QMainWindow):
             self.video_display.stop_video()
             self.start_button.setEnabled(True)
             self.stop_button.setEnabled(False)
-            self.save_button.setEnabled(False)
-            self.status_bar.showMessage("Video stopped")
+            # Keep save button enabled if we have a frame to allow saving the tuned static image
+            has_frame = self.video_display.get_current_frame() is not None
+            self.save_button.setEnabled(has_frame)
+            self.status_bar.showMessage("Video stopped (preview frozen)" if has_frame else "Video stopped")
             self.logger.info("Video stopped")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to stop video: {e}")
@@ -601,17 +644,65 @@ class MainWindow(QMainWindow):
             self.detection_panel.set_active()
             self.logger.info("Detection enabled")
             self.status_bar.showMessage("Detection: ACTIVE")
+            # If video is stopped, immediately reprocess the current frame
+            try:
+                if not self.video_display.is_playing:
+                    self._reprocess_current_frame()
+            except Exception as e:
+                self.logger.error(f"Failed to reprocess current frame: {e}")
         else:
             self.detection_engine.set_state(DetectionState.OFF)
             self.detection_panel.set_inactive()
             self.logger.info("Detection disabled")
             self.status_bar.showMessage("Detection: INACTIVE")
 
+    def _on_detection_state_changed(self, text: str):
+        """Mirror detection panel state changes to status bar."""
+        try:
+            self.status_bar.showMessage(text)
+        except Exception:
+            pass
+
+    def _on_threshold_changed(self, value: int):
+        """Handle threshold slider changes (0-100 -> 0.0-1.0)."""
+        try:
+            if not hasattr(self, 'detection_engine') or self.detection_engine is None:
+                return
+            self.detection_engine.set_confidence_threshold(value / 100.0)
+            self.status_bar.showMessage(f"Detection threshold: {value}%")
+            # Reprocess current frame even if video is stopped to visualize changes
+            self._reprocess_current_frame()
+        except Exception as e:
+            self.logger.error(f"Failed to update detection threshold: {e}")
+
+    def _reset_threshold(self):
+        """Reset threshold to 50% and update UI/engine."""
+        try:
+            if hasattr(self, 'detection_panel'):
+                self.detection_panel.set_threshold(50)
+            if hasattr(self, 'detection_engine') and self.detection_engine:
+                self.detection_engine.set_confidence_threshold(0.5)
+            self.status_bar.showMessage("Detection threshold reset to 50%")
+        except Exception as e:
+            self.logger.error(f"Failed to reset threshold: {e}")
+
+    def _on_detect_scope_menu_toggled(self, checked: bool):
+        """Mirror detection scope menu toggle to SetInfoPanel checkbox."""
+        try:
+            if hasattr(self, 'set_info_panel') and self.set_info_panel:
+                self.set_info_panel.set_detection_scope(checked)
+            # Reprocess current frame to reflect scope change
+            self._reprocess_current_frame()
+        except Exception as e:
+            self.logger.error(f"Failed to toggle detection scope from menu: {e}")
+
     def _on_detect_scope_changed(self, set_only: bool):
         """Update detection scope (set-only vs all classes)."""
         try:
             self.detect_only_set_classes = set_only
             self._update_detection_allowed_classes()
+            # Reprocess current frame to reflect new filtering
+            self._reprocess_current_frame()
         except Exception as e:
             self.logger.error(f"Failed to update detection scope: {e}")
 
@@ -637,29 +728,64 @@ class MainWindow(QMainWindow):
     def _process_frame_for_detection(self, frame: np.ndarray):
         """Process frame for detection if enabled."""
         if not self.detection_engine:
+            # No engine, display frame as-is
+            self._display_frame(frame)
             return
         
         state = self.detection_engine.get_state()
         if state != DetectionState.ACTIVE:
+            # Detection not active, display frame without annotations
+            self._display_frame(frame)
             return
         
         try:
             # Run detection inference
             detections = self.detection_engine.infer(frame)
             
-            if detections:
-                # Draw detections on frame
-                annotated_frame = self.video_display.draw_detections(frame, detections)
-                
-                # Update display with annotated frame
-                from ..vision.video_utils import convert_frame_to_qimage
-                qimage = convert_frame_to_qimage(annotated_frame)
-                if qimage is not None:
-                    from PyQt6.QtGui import QPixmap
-                    pixmap = QPixmap.fromImage(qimage)
-                    self.video_display.video_label.setPixmap(pixmap)
+            # Draw detections on frame
+            annotated_frame = self.video_display.draw_detections(frame, detections)
+            
+            # Update display with annotated frame
+            self._display_frame(annotated_frame)
         except Exception as e:
             self.logger.error(f"Error processing frame for detection: {e}")
+            # On error, display original frame
+            self._display_frame(frame)
+
+    def _display_frame(self, frame: np.ndarray):
+        """Display a frame in the video widget."""
+        try:
+            from ..vision.video_utils import convert_frame_to_qimage
+            qimage = convert_frame_to_qimage(frame)
+            if qimage is not None:
+                from PyQt6.QtGui import QPixmap
+                pixmap = QPixmap.fromImage(qimage)
+                self.video_display.video_label.setPixmap(pixmap)
+        except Exception as e:
+            self.logger.error(f"Error displaying frame: {e}")
+
+    def _reprocess_current_frame(self):
+        """Re-run detection on the current frame and refresh the display.
+        Works even when video is stopped to allow parameter tuning on a static image.
+        """
+        try:
+            if not hasattr(self, 'detection_engine') or self.detection_engine is None:
+                return
+            frame = self.video_display.get_current_frame()
+            if frame is None:
+                return
+            
+            state = self.detection_engine.get_state()
+            if state != DetectionState.ACTIVE:
+                # Detection not active, just refresh the clean frame
+                self._display_frame(frame)
+                return
+                
+            detections = self.detection_engine.infer(frame)
+            annotated_frame = self.video_display.draw_detections(frame, detections)
+            self._display_frame(annotated_frame)
+        except Exception as e:
+            self.logger.error(f"Failed to reprocess current frame: {e}")
 
     def show_about(self):
         """Show about dialog."""

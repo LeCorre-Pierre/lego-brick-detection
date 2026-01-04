@@ -1,7 +1,7 @@
 """Detection control panel UI component."""
 
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QLabel
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QLabel, QSlider
+from PyQt6.QtCore import pyqtSignal, Qt
 from ..utils.logger import get_logger
 
 logger = get_logger("detection_panel")
@@ -13,6 +13,7 @@ class DetectionPanel(QWidget):
     # Signals
     detection_toggled = pyqtSignal(bool)  # Emitted when toggle button clicked (True=enable, False=disable)
     state_changed = pyqtSignal(str)       # Emitted when state changes (state label)
+    threshold_changed = pyqtSignal(int)   # Emitted when threshold slider changes (0-100)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -40,6 +41,19 @@ class DetectionPanel(QWidget):
         self.toggle_button.clicked.connect(self._on_toggle_clicked)
         self.toggle_button.setMinimumHeight(40)
         layout.addWidget(self.toggle_button)
+
+        # Confidence threshold slider (0-100)
+        self.threshold_label = QLabel("Threshold: 50%")
+        self.threshold_label.setMinimumWidth(120)
+        layout.addWidget(self.threshold_label)
+
+        self.threshold_slider = QSlider()
+        self.threshold_slider.setOrientation(Qt.Orientation.Horizontal)
+        self.threshold_slider.setRange(0, 100)
+        self.threshold_slider.setValue(50)
+        self.threshold_slider.setEnabled(False)  # Enabled when model ready
+        self.threshold_slider.valueChanged.connect(self._on_threshold_value_changed)
+        layout.addWidget(self.threshold_slider)
 
         self.setLayout(layout)
         self._update_button_style()
@@ -69,6 +83,7 @@ class DetectionPanel(QWidget):
                 }
             """)
             self.toggle_button.setText("Start Detection")
+            self.threshold_slider.setEnabled(False)
         elif self.is_detection_active:
             # Active state (detection running)
             self.toggle_button.setStyleSheet("""
@@ -84,6 +99,7 @@ class DetectionPanel(QWidget):
                 }
             """)
             self.toggle_button.setText("Stop Detection")
+            self.threshold_slider.setEnabled(True)
         else:
             # Ready state (detection available, not running)
             self.toggle_button.setStyleSheet("""
@@ -99,6 +115,7 @@ class DetectionPanel(QWidget):
                 }
             """)
             self.toggle_button.setText("Start Detection")
+            self.threshold_slider.setEnabled(True)
 
     def set_loading(self):
         """Set UI to loading state."""
@@ -118,6 +135,7 @@ class DetectionPanel(QWidget):
         self.toggle_button.setEnabled(True)
         self.toggle_button.setChecked(False)
         self.status_label.setText("Ready")
+        self.threshold_slider.setEnabled(True)
         self._update_button_style()
         self.state_changed.emit("Ready")
         self.logger.info("Detection panel state: READY")
@@ -155,3 +173,16 @@ class DetectionPanel(QWidget):
         self._update_button_style()
         self.state_changed.emit("Ready")
         self.logger.info("Detection panel state: INACTIVE")
+
+    def _on_threshold_value_changed(self, value: int):
+        """Handle threshold slider changes."""
+        try:
+            self.threshold_label.setText(f"Threshold: {value}%")
+            self.threshold_changed.emit(value)
+        except Exception as e:
+            self.logger.error(f"Failed to emit threshold change: {e}")
+
+    def set_threshold(self, value: int):
+        """Programmatically set slider value (0-100)."""
+        self.threshold_slider.setValue(max(0, min(100, int(value))))
+        self.threshold_label.setText(f"Threshold: {self.threshold_slider.value()}%")
