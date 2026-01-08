@@ -20,7 +20,7 @@
 
 **Purpose**: Project initialization and basic structure for brick list interface
 
-- [ ] T001 Create data/brick_images/ directory for brick preview images
+- [ ] T001 Create data/preview_images/ directory for brick preview images
 - [ ] T002 [P] Create tests/unit/ directory structure if not exists
 - [ ] T003 [P] Create tests/integration/ directory structure if not exists
 

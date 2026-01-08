@@ -6,3 +6,4 @@ pillow
 jupyter
 PyQt6
 ultralytics
+requests

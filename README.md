@@ -13,12 +13,26 @@ See [.specify/memory/constitution.md](.specify/memory/constitution.md) for proje
 
 ## Features
 
+### Core Features
+
 - Real-time video preview with start/stop controls
 - Save Preview (JPG) button stores current frame in screenshoot/ with timestamp
 - YOLOv8 detection toggle with bounding boxes and labels
 - Detection scope control: choose to detect only bricks from the loaded set or all model classes
- - Detection menu: quick actions to toggle set-only scope and reset threshold
+- Detection menu: quick actions to toggle set-only scope and reset threshold
 - **Static frame tuning**: Stop video to freeze the preview and adjust detection parameters (threshold, scope) on a static image without real-time processing overhead
+
+### Automatic Preview Image Downloads (NEW)
+
+The application now automatically downloads missing brick preview images from BrickLink when you load a set:
+
+- **Smart Prioritization**: Images for bricks in the viewport are downloaded first, providing instant visual feedback
+- **Background Processing**: Downloads occur in a separate thread, keeping the UI responsive
+- **Graceful Fallback**: If an image cannot be downloaded (network issue, 404), a placeholder with the part number is generated
+- **Rate Limiting**: 1-second delay between downloads to respect BrickLink servers
+- **Caching**: Downloaded images are saved to `data/preview_images/` for future use
+
+**Usage**: Simply load a Lego set - preview images will appear automatically as they download. No manual intervention needed!
 ```
 
 3. Start the video preview and toggle detection:
@@ -84,6 +98,4 @@ Hex: Lego Computer Vision Dataset
     Dataset
     This dataset, curated with Roboflow, includes 8,320 images and over 15,000 annotations, capturing LEGO bricks in different configurations and lighting environments. Data augmentation techniques were applied to enhance robustness, covering 28 distinct LEGO brick classes.
 
-/speckit.plan
 
-The format of the preview image is png. 

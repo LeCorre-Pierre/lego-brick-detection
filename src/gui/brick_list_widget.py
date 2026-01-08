@@ -1,6 +1,7 @@
 """
 Custom list widget for displaying bricks in a set with interactive features.
 Manages brick display, counter tracking, manual marking, and detection feedback.
+Extended with automatic preview image downloading.
 """
 
 from pathlib import Path
@@ -13,6 +14,7 @@ from PyQt6.QtGui import QFont
 from ..models.brick import Brick
 from ..models.lego_set import LegoSet
 from ..utils.image_cache import ImageCache
+from ..utils.image_downloader import ImageDownloader
 from ..utils.logger import get_logger
 from .brick_list_item import BrickListItem
 
@@ -59,8 +61,16 @@ class BrickListWidget(QListWidget):
         self._state = BrickListState()
         
         # Initialize image cache
-        image_dir = Path("data/brick_images")
+        image_dir = Path("data/preview_images")
         self._image_cache = ImageCache(image_dir, max_size=100, image_size=(48, 48))
+        
+        # Initialize image downloader (T019)
+        preview_dir = Path("data/preview_images")
+        self._downloader = ImageDownloader(cache_dir=preview_dir)
+        
+        # Connect download signals (T020)
+        self._downloader.signals.download_complete.connect(self._on_image_downloaded)
+        self._downloader.signals.download_failed.connect(self._on_image_download_failed)
         
         # Brick items lookup (part_number -> BrickListItem)
         self._brick_items: Dict[str, BrickListItem] = {}
@@ -71,7 +81,7 @@ class BrickListWidget(QListWidget):
         self._update_timer.start(100)  # 100ms batching interval
         
         self._setup_ui()
-        self.logger.info("Brick list widget initialized")
+        self.logger.info("Brick list widget initialized with image downloader")
     
     def _setup_ui(self):
         """Setup the list widget appearance."""
@@ -124,9 +134,12 @@ class BrickListWidget(QListWidget):
         for brick in lego_set.bricks:
             self._add_brick_item(brick)
         
-        # Preload images in background
+        # Preload images in background (legacy image cache)
         part_numbers = [brick.part_number for brick in lego_set.bricks]
         self._image_cache.preload_images(part_numbers)
+        
+        # Request preview downloads with viewport-based priority (T021, T022)
+        self._request_preview_downloads()
         
         self.logger.info(f"Loaded {len(lego_set.bricks)} bricks into list")
     
@@ -372,3 +385,86 @@ class BrickListWidget(QListWidget):
         finally:
             # Re-enable updates
             self.setUpdatesEnabled(True)
+    
+    def _request_preview_downloads(self) -> None:
+        """
+        Request preview image downloads for all bricks with viewport-based priority.
+        (T021, T022)
+        """
+        if not self.current_set:
+            return
+        
+        # Get viewport geometry
+        viewport_top = self.verticalScrollBar().value()
+        viewport_height = self.viewport().height()
+        viewport_bottom = viewport_top + viewport_height
+        
+        # Request downloads with priority based on viewport visibility
+        for idx in range(self.count()):
+            item = self.item(idx)
+            brick_widget = self.itemWidget(item)
+            
+            if not isinstance(brick_widget, BrickListItem):
+                continue
+            
+            part_number = brick_widget.brick.part_number
+            
+            # Skip if already cached
+            if self._downloader.is_cached(part_number):
+                continue
+            
+            # Calculate item position
+            item_rect = self.visualItemRect(item)
+            item_top = item_rect.top()
+            item_bottom = item_rect.bottom()
+            
+            # Determine priority:
+            # - HIGH (0): Item is in viewport
+            # - MEDIUM (5): Item is just outside viewport (1 screen distance)
+            # - LOW (10): Item is far from viewport
+            if item_bottom >= viewport_top and item_top <= viewport_bottom:
+                priority = 0  # In viewport - highest priority
+            elif item_top <= viewport_bottom + viewport_height:
+                priority = 5  # Just below viewport - medium priority
+            elif item_bottom >= viewport_top - viewport_height:
+                priority = 5  # Just above viewport - medium priority
+            else:
+                priority = 10  # Far from viewport - low priority
+            
+            # Request download (without color_id since Brick doesn't have it)
+            self._downloader.request_image(part_number, priority)
+            self.logger.debug(f"Requested download for {part_number} with priority {priority}")
+    
+    def _on_image_downloaded(self, part_number: str, file_path: str) -> None:
+        """
+        Handle successful image download completion.
+        Update the BrickListItem to display the downloaded image.
+        (T023)
+        
+        Args:
+            part_number: The brick part number
+            file_path: Path to the downloaded image file
+        """
+        self.logger.info(f"Image downloaded: {part_number} -> {file_path}")
+        
+        # Find and update the corresponding brick item
+        brick_item = self._brick_items.get(part_number)
+        if brick_item:
+            # Use the file path directly since _image_cache.get_image returns QPixmap
+            from pathlib import Path
+            path_obj = Path(file_path)
+            if path_obj.exists():
+                brick_item.update_preview_image(str(path_obj))
+                self.logger.debug(f"Updated preview image for {part_number}")
+    
+    def _on_image_download_failed(self, part_number: str, error: str) -> None:
+        """
+        Handle failed image download.
+        Log the error but don't disrupt UI.
+        (T023)
+        
+        Args:
+            part_number: The brick part number
+            error: Error message
+        """
+        self.logger.warning(f"Failed to download image for {part_number}: {error}")

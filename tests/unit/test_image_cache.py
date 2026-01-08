@@ -14,7 +14,7 @@ class TestImageCache:
     @pytest.fixture
     def temp_image_dir(self, tmp_path):
         """Create temporary directory for test images."""
-        image_dir = tmp_path / "brick_images"
+        image_dir = tmp_path / "preview_images"
         image_dir.mkdir()
         return image_dir
     

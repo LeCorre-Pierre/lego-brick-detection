@@ -753,7 +753,15 @@ class MainWindow(QMainWindow):
             "For more help, visit the project documentation.")
 
     def closeEvent(self, event):
-        """Handle application close event."""
+        """
+        Handle application close event.
+        (T043)
+        """
         self.video_display.stop_video()
+        
+        # Shutdown image downloader gracefully (T043)
+        if hasattr(self, 'brick_list_widget') and hasattr(self.brick_list_widget, '_downloader'):
+            self.brick_list_widget._downloader.shutdown()
+        
         self.logger.info("Application closing")
         event.accept()

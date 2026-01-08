@@ -230,6 +230,24 @@ class BrickListItem(QWidget):
         self._is_detected = is_detected
         self.detection_icon.setVisible(is_detected)
     
+    def update_preview_image(self, image_path: str) -> None:
+        """
+        Update the preview image from a file path.
+        (T025)
+        
+        Args:
+            image_path: Path to the image file to display
+        """
+        pixmap = QPixmap(image_path)
+        if not pixmap.isNull():
+            # Scale to fit the label while maintaining aspect ratio
+            scaled_pixmap = pixmap.scaled(
+                48, 48,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            )
+            self.preview_label.setPixmap(scaled_pixmap)
+    
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """Handle mouse clicks for counter increment/decrement."""
         if event.button() == Qt.MouseButton.LeftButton:

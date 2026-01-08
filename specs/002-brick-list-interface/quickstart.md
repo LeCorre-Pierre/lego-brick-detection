@@ -74,7 +74,7 @@ pytest tests/unit/test_brick_model.py
 3. Test image loading and caching:
    ```python
    def test_image_cache_loads_from_disk():
-       cache = ImageCache(Path("data/brick_images"))
+       cache = ImageCache(Path("data/preview_images"))
        pixmap = cache.get_image("3005")
        assert not pixmap.isNull()
    ```
@@ -302,7 +302,7 @@ pytest tests/integration/test_brick_list_integration.py
 **Tasks**:
 1. Create directory structure:
    ```bash
-   mkdir -p data/brick_images
+   mkdir -p data/preview_images
    ```
 
 2. Generate or download brick preview images:
@@ -312,7 +312,7 @@ pytest tests/integration/test_brick_list_integration.py
 
 3. Test with sample images:
    ```bash
-   # Place test images in data/brick_images/
+   # Place test images in data/preview_images/
    # Run application and verify images load
    python -m src.main --set-file ./data/sample_3005.csv --camera 0
    ```

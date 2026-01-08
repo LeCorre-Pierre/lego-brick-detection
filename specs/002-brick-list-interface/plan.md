@@ -87,7 +87,7 @@ tests/
     └── test_brick_list_integration.py  # NEW: Test GUI integration
 
 data/
-├── brick_images/               # NEW: Directory for brick preview images
+├── preview_images/               # NEW: Directory for brick preview images
 │   └── [part_number].png      # Preview images keyed by part number
 └── sample_3005.csv             # Existing - Set data
 ```
