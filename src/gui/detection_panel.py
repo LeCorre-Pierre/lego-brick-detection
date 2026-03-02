@@ -43,14 +43,14 @@ class DetectionPanel(QWidget):
         layout.addWidget(self.toggle_button)
 
         # Confidence threshold slider (0-100)
-        self.threshold_label = QLabel("Threshold: 50%")
+        self.threshold_label = QLabel("Threshold: 20%")
         self.threshold_label.setMinimumWidth(120)
         layout.addWidget(self.threshold_label)
 
         self.threshold_slider = QSlider()
         self.threshold_slider.setOrientation(Qt.Orientation.Horizontal)
         self.threshold_slider.setRange(0, 100)
-        self.threshold_slider.setValue(50)
+        self.threshold_slider.setValue(20)
         self.threshold_slider.setEnabled(False)  # Enabled when model ready
         self.threshold_slider.valueChanged.connect(self._on_threshold_value_changed)
         layout.addWidget(self.threshold_slider)

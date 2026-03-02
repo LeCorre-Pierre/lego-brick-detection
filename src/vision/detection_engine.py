@@ -1,9 +1,12 @@
 """YOLOv8 brick detection engine wrapper."""
 
 import os
+import time
 from typing import List, Optional, Tuple
 from numpy.typing import NDArray
 import numpy as np
+import cv2
+import requests
 import torch
 from ..utils.logger import get_logger
 from .detection_state import DetectionState, DetectionStateManager
@@ -36,7 +39,7 @@ class Detection:
 class YOLOv8Engine:
     """YOLOv8 brick detection engine."""
 
-    def __init__(self, confidence_threshold: float = 0.5, device: Optional[str] = None):
+    def __init__(self, confidence_threshold: float = 0.2, device: Optional[str] = None):
         """Initialize detection engine.
         
         Args:
@@ -54,7 +57,22 @@ class YOLOv8Engine:
         else:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self._fallback_attempted = False  # Track CUDA→CPU fallback attempts
+        self.roboflow_api_key = os.getenv("ROBOFLOW_API_KEY", "").strip()
+        self.roboflow_model_id = os.getenv("ROBOFLOW_MODEL_ID", "").strip()
+        self.roboflow_api_url = os.getenv("ROBOFLOW_API_URL", "https://detect.roboflow.com").strip().rstrip("/")
+        self.roboflow_timeout = float(os.getenv("ROBOFLOW_TIMEOUT_SECONDS", "10"))
+        self.enable_roboflow_fallback = os.getenv("ROBOFLOW_FALLBACK", "1").strip().lower() in {
+            "1", "true", "yes", "on"
+        }
+        self.roboflow_min_interval_seconds = float(os.getenv("ROBOFLOW_MIN_INTERVAL_SECONDS", "0.4"))
+        self._last_roboflow_request = 0.0
         logger.info(f"YOLOv8Engine initialized (threshold={confidence_threshold}, device={self.device})")
+        if self.is_remote_configured():
+            logger.info(f"Roboflow remote fallback enabled for model: {self.roboflow_model_id}")
+
+    def is_remote_configured(self) -> bool:
+        """Return True when Roboflow hosted inference is configured."""
+        return bool(self.roboflow_api_key and self.roboflow_model_id)
 
     def set_confidence_threshold(self, threshold: float) -> None:
         """Update the confidence threshold used for filtering detections.
@@ -145,12 +163,14 @@ class YOLOv8Engine:
             List of Detection objects
         """
         if self.model is None:
+            if self.is_remote_configured():
+                return self._infer_with_roboflow(frame)
             logger.warning("Model not loaded, skipping inference")
             return []
 
         try:
             # Run YOLOv8 inference
-            results = self.model(frame, verbose=False, device=self.device)
+            results = self.model(frame, verbose=False, device=self.device, conf=self.confidence_threshold)
             detections = []
 
             for result in results:
@@ -172,10 +192,8 @@ class YOLOv8Engine:
                     class_name = self.model.names.get(class_id, f"Class {class_id}")
 
                     # Optional filtering by allowed class names/tokens
-                    if self.allowed_class_names:
-                        name_lower = class_name.lower()
-                        if (name_lower not in self.allowed_class_names) and not any(token in name_lower for token in self.allowed_class_names):
-                            continue
+                    if not self._is_detection_allowed(class_name):
+                        continue
                     
                     detection = Detection(
                         bbox=(x1, y1, x2, y2),
@@ -184,6 +202,12 @@ class YOLOv8Engine:
                         confidence=confidence
                     )
                     detections.append(detection)
+
+            if len(detections) == 0 and self.enable_roboflow_fallback and self.is_remote_configured():
+                remote_detections = self._infer_with_roboflow(frame)
+                if remote_detections:
+                    self.last_detections = remote_detections
+                    return remote_detections
 
             self.last_detections = detections
             return detections
@@ -203,6 +227,88 @@ class YOLOv8Engine:
                     return []
 
             logger.error(f"Inference failed: {err_msg}")
+            return []
+
+    def _is_detection_allowed(self, class_name: str) -> bool:
+        """Return True if class should be included based on active set filter."""
+        if not self.allowed_class_names:
+            return True
+        name_lower = class_name.lower()
+        if name_lower in self.allowed_class_names:
+            return True
+        return any(token in name_lower for token in self.allowed_class_names)
+
+    def _infer_with_roboflow(self, frame: NDArray[np.uint8]) -> List[Detection]:
+        """Run hosted inference using Roboflow API and map output to Detection objects."""
+        if not self.is_remote_configured():
+            return []
+
+        now = time.time()
+        if now - self._last_roboflow_request < self.roboflow_min_interval_seconds:
+            return self.last_detections.copy()
+
+        self._last_roboflow_request = now
+
+        try:
+            ok, encoded = cv2.imencode(".jpg", frame)
+            if not ok:
+                logger.error("Roboflow fallback failed: could not encode frame to JPEG")
+                return []
+
+            endpoint = f"{self.roboflow_api_url}/{self.roboflow_model_id}"
+            params = {
+                "api_key": self.roboflow_api_key,
+                "confidence": int(self.confidence_threshold * 100),
+                "format": "json",
+            }
+            response = requests.post(
+                endpoint,
+                params=params,
+                files={"file": ("frame.jpg", encoded.tobytes(), "image/jpeg")},
+                timeout=self.roboflow_timeout,
+            )
+            response.raise_for_status()
+
+            payload = response.json()
+            predictions = payload.get("predictions", [])
+            detections: List[Detection] = []
+
+            for pred in predictions:
+                confidence = float(pred.get("confidence", 0.0))
+                if confidence < self.confidence_threshold:
+                    continue
+
+                class_name = str(pred.get("class", pred.get("class_name", "Unknown")))
+                if not self._is_detection_allowed(class_name):
+                    continue
+
+                x = float(pred.get("x", 0.0))
+                y = float(pred.get("y", 0.0))
+                w = float(pred.get("width", 0.0))
+                h = float(pred.get("height", 0.0))
+                x1 = x - (w / 2.0)
+                y1 = y - (h / 2.0)
+                x2 = x + (w / 2.0)
+                y2 = y + (h / 2.0)
+
+                class_id_raw = pred.get("class_id", -1)
+                try:
+                    class_id = int(class_id_raw)
+                except Exception:
+                    class_id = -1
+
+                detections.append(
+                    Detection(
+                        bbox=(x1, y1, x2, y2),
+                        class_id=class_id,
+                        class_name=class_name,
+                        confidence=confidence,
+                    )
+                )
+
+            return detections
+        except Exception as e:
+            logger.warning(f"Roboflow fallback inference failed: {e}")
             return []
 
     def get_detections(self) -> List[Detection]:

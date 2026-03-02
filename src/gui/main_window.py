@@ -25,6 +25,7 @@ from ..vision.model_loader import ModelLoaderThread
 from ..vision.detection_state import DetectionState
 
 logger = get_logger("main_window")
+DEFAULT_DETECTION_THRESHOLD = 20
 
 
 class MainWindow(QMainWindow):
@@ -97,26 +98,26 @@ class MainWindow(QMainWindow):
     def _start_model_loading(self):
         """Start YOLOv8 model loading in background thread."""
         try:
-            model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../models")
-            # Look for .pt file in models directory
-            pt_files = [f for f in os.listdir(model_path) if f.endswith('.pt')]
-            
-            if pt_files:
-                model_file = os.path.join(model_path, pt_files[0])
-                self.logger.info(f"Found model: {model_file}")
-                
-                # Initialize detection engine
-                self.detection_engine = YOLOv8Engine()
-                self.detection_panel.set_loading()
-                
+            # Initialize detection engine first to allow hosted fallback when no local model exists.
+            self.detection_engine = YOLOv8Engine()
+            self.detection_panel.set_loading()
+            model_file = self._resolve_model_file()
+
+            if model_file:
+                self.logger.info(f"Selected model: {model_file}")
+
                 # Start model loading in background
                 self.model_loader = ModelLoaderThread(self.detection_engine, model_file)
                 self.model_loader.progress.connect(self._on_model_load_progress)
                 self.model_loader.finished.connect(self._on_model_loaded)
                 self.model_loader.error.connect(self._on_model_load_error)
                 self.model_loader.start()
+            elif self.detection_engine.is_remote_configured():
+                self.logger.warning("No local YOLO model found; using Roboflow hosted inference fallback.")
+                self._on_model_loaded(True)
+                self.status_bar.showMessage("Detection ready (Roboflow hosted model)")
             else:
-                self.logger.warning("No YOLOv8 model (.pt) file found in models/ directory")
+                self.logger.warning("No YOLOv8 model (.pt) file found in models/ and no Roboflow fallback configured")
                 self.detection_engine = None
                 self.detection_panel.set_error("No model file found")
                 
@@ -124,6 +125,49 @@ class MainWindow(QMainWindow):
             self.logger.error(f"Error starting model loading: {e}")
             self.detection_engine = None
             self.detection_panel.set_error(str(e))
+
+    def _resolve_model_file(self) -> str | None:
+        """Resolve the best local model file path.
+
+        Priority:
+        1) Environment variable LEGO_MODEL_PATH (absolute or relative to models directory)
+        2) Best-ranked .pt file from models/ directory
+        """
+        model_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../models"))
+        env_model_path = os.getenv("LEGO_MODEL_PATH", "").strip()
+
+        if env_model_path:
+            candidate = env_model_path if os.path.isabs(env_model_path) else os.path.join(model_dir, env_model_path)
+            candidate = os.path.abspath(candidate)
+            if os.path.exists(candidate):
+                if candidate.lower().endswith(".pt"):
+                    return candidate
+                self.logger.warning(f"LEGO_MODEL_PATH is not a .pt file: {candidate}")
+            else:
+                self.logger.warning(f"LEGO_MODEL_PATH not found: {candidate}")
+
+        if not os.path.isdir(model_dir):
+            return None
+
+        pt_files: list[str] = []
+        for file_name in os.listdir(model_dir):
+            if file_name.lower().endswith(".pt"):
+                pt_files.append(os.path.join(model_dir, file_name))
+
+        if not pt_files:
+            return None
+
+        def _rank(path: str) -> tuple[int, float, int, str]:
+            name = os.path.basename(path).lower()
+            score = 0
+            for token, weight in (("b200", -3), ("lego", -2), ("brick", -1)):
+                if token in name:
+                    score += weight
+            # Prefer newer/larger files when token score is equal.
+            return (score, -os.path.getmtime(path), -os.path.getsize(path), name)
+
+        pt_files.sort(key=_rank)
+        return pt_files[0]
     
     def _on_model_load_progress(self, message: str):
         """Handle model loading progress update."""
@@ -385,9 +429,9 @@ class MainWindow(QMainWindow):
         self.detect_scope_action.toggled.connect(self._on_detect_scope_menu_toggled)
         detection_menu.addAction(self.detect_scope_action)
 
-        # Reset threshold to default (50%)
-        self.reset_threshold_action = QAction('Reset Threshold to 50%', self)
-        self.reset_threshold_action.setToolTip('Set detection confidence threshold to 50%')
+        # Reset threshold to default (20%)
+        self.reset_threshold_action = QAction('Reset Threshold to 20%', self)
+        self.reset_threshold_action.setToolTip('Set detection confidence threshold to 20%')
         self.reset_threshold_action.triggered.connect(lambda: self._reset_threshold())
         detection_menu.addAction(self.reset_threshold_action)
 
@@ -620,13 +664,13 @@ class MainWindow(QMainWindow):
             self.logger.error(f"Failed to update detection threshold: {e}")
 
     def _reset_threshold(self):
-        """Reset threshold to 50% and update UI/engine."""
+        """Reset threshold to 20% and update UI/engine."""
         try:
             if hasattr(self, 'detection_panel'):
-                self.detection_panel.set_threshold(50)
+                self.detection_panel.set_threshold(DEFAULT_DETECTION_THRESHOLD)
             if hasattr(self, 'detection_engine') and self.detection_engine:
-                self.detection_engine.set_confidence_threshold(0.5)
-            self.status_bar.showMessage("Detection threshold reset to 50%")
+                self.detection_engine.set_confidence_threshold(DEFAULT_DETECTION_THRESHOLD / 100.0)
+            self.status_bar.showMessage(f"Detection threshold reset to {DEFAULT_DETECTION_THRESHOLD}%")
         except Exception as e:
             self.logger.error(f"Failed to reset threshold: {e}")
 

@@ -14,7 +14,7 @@ import requests
 from utils.image_downloader import ImageDownloader, BASE_URL
 
 
-def test_direct_download(part_number: str, color_code: int = 3):
+def run_direct_download(part_number: str, color_code: int = 3):
     """Test direct HTTP download without the downloader class."""
     url = f"{BASE_URL}/{color_code}/{part_number}.png"
     print(f"\n{'='*60}")
@@ -75,7 +75,7 @@ def test_direct_download(part_number: str, color_code: int = 3):
     return False
 
 
-def test_color_fallback(part_number: str):
+def run_color_fallback(part_number: str):
     """Test color fallback mechanism."""
     print(f"\n{'='*60}")
     print(f"Testing color fallback for: {part_number}")
@@ -106,7 +106,7 @@ def test_color_fallback(part_number: str):
     return None
 
 
-def test_with_downloader(part_number: str):
+def run_with_downloader(part_number: str):
     """Test using the ImageDownloader class."""
     print(f"\n{'='*60}")
     print(f"Testing with ImageDownloader class: {part_number}")
@@ -171,20 +171,20 @@ def main():
     print("\n\nTEST 1: DIRECT HTTP DOWNLOADS")
     print("="*60)
     for part in test_parts:
-        success = test_direct_download(part)
+        success = run_direct_download(part)
         results.append(("Direct download", part, success))
         time.sleep(1)  # Rate limiting
     
     # Test 2: Color fallback
     print("\n\nTEST 2: COLOR FALLBACK MECHANISM")
     print("="*60)
-    color_found = test_color_fallback("3001")
+    color_found = run_color_fallback("3001")
     results.append(("Color fallback", "3001", color_found is not None))
     
     # Test 3: ImageDownloader class
     print("\n\nTEST 3: IMAGE DOWNLOADER CLASS")
     print("="*60)
-    success = test_with_downloader("3001")
+    success = run_with_downloader("3001")
     results.append(("ImageDownloader", "3001", success))
     
     # Summary

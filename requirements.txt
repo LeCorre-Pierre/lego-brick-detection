@@ -7,3 +7,5 @@ jupyter
 PyQt6
 ultralytics
 requests
+PyYAML
+pytest

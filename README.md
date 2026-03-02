@@ -13,7 +13,30 @@ See [.specify/memory/constitution.md](.specify/memory/constitution.md) for proje
 
 ## Features
 
-### Core Features
+### 🆕 YOLO Annotation Tool
+
+**Create high-quality YOLO datasets for LEGO brick detection!**
+
+The project now includes a powerful annotation tool to create and manage YOLO-compatible datasets:
+
+- ✅ **Easy-to-use GUI**: PyQt6 interface with intuitive controls
+- ✅ **YOLO export**: Native format support (no external dependencies)
+- ✅ **Quick annotation**: Keyboard shortcuts (1-6) for classes, click-and-drag for bboxes
+- ✅ **Project management**: Auto-save, validation, train/val split
+- ✅ **Pre-defined classes**: 6 common LEGO bricks (customizable)
+- ✅ **Statistics**: Real-time visualization of dataset progress
+
+**Launch the annotation tool**:
+```bash
+python src/annotation/run_annotation_tool.py
+```
+
+**Documentation**:
+- User Guide: [specs/004-yolo-annotation-tool/USER_GUIDE.md](specs/004-yolo-annotation-tool/USER_GUIDE.md)
+- API Documentation: [src/annotation/README.md](src/annotation/README.md)
+- Implementation: [specs/004-yolo-annotation-tool/IMPLEMENTATION_SUMMARY.md](specs/004-yolo-annotation-tool/IMPLEMENTATION_SUMMARY.md)
+
+### Core Detection Features
 
 - Real-time video preview with start/stop controls
 - Save Preview (JPG) button stores current frame in screenshoot/ with timestamp
@@ -22,7 +45,7 @@ See [.specify/memory/constitution.md](.specify/memory/constitution.md) for proje
 - Detection menu: quick actions to toggle set-only scope and reset threshold
 - **Static frame tuning**: Stop video to freeze the preview and adjust detection parameters (threshold, scope) on a static image without real-time processing overhead
 
-### Automatic Preview Image Downloads (NEW)
+### Automatic Preview Image Downloads
 
 The application now automatically downloads missing brick preview images from BrickLink when you load a set:
 
@@ -50,7 +73,7 @@ The application now automatically downloads missing brick preview images from Br
 
 5. Detection options menu:
 
-- Use the "Detection" menu to quickly toggle "Detect Only Set Classes" and to "Reset Threshold to 50%".
+- Use the "Detection" menu to quickly toggle "Detect Only Set Classes" and to "Reset Threshold to 20%".
 
 6. Static frame tuning workflow:
 
@@ -99,3 +122,34 @@ Hex: Lego Computer Vision Dataset
     This dataset, curated with Roboflow, includes 8,320 images and over 15,000 annotations, capturing LEGO bricks in different configurations and lighting environments. Data augmentation techniques were applied to enhance robustness, covering 28 distinct LEGO brick classes.
 
 
+
+
+## Detection Pipeline (Unstuck Mode)
+
+The inference pipeline supports both local and hosted models:
+
+1. Local `.pt` model via Ultralytics (default)
+2. Optional Roboflow hosted inference fallback (used when local model is missing or returns no detections)
+
+### Local model selection
+
+- Set `LEGO_MODEL_PATH` to force a model file (absolute path, or path relative to `models/`).
+- If `LEGO_MODEL_PATH` is not set, the app auto-selects the best `.pt` in `models/` using LEGO-oriented filename ranking.
+- Default detection threshold is now `20%` (recommended for low-confidence LEGO scenes).
+
+### Roboflow fallback setup (optional)
+
+Set these environment variables before launching:
+
+- `ROBOFLOW_API_KEY=<your_api_key>`
+- `ROBOFLOW_MODEL_ID=<workspace/project/version>` (example: `craftyblocks/hex-lego-yk2pe/1`)
+
+Optional tuning:
+
+- `ROBOFLOW_FALLBACK=1` (default enabled)
+- `ROBOFLOW_TIMEOUT_SECONDS=10`
+- `ROBOFLOW_MIN_INTERVAL_SECONDS=0.4`
+
+### External model catalog
+
+See [MODEL_ZOO.md](MODEL_ZOO.md) for accessible LEGO detection models and links.
