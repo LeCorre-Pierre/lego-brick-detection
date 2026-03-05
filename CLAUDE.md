@@ -47,6 +47,12 @@ src/
     video_utils.py
     video_tester.py
     camera_scanner.py    # Enumerate available cameras
+  annotation/
+    models.py            # BrickClass, Annotation, AnnotatedImage, Dataset, AnnotationProject
+    yolo_format.py       # YoloFormatter: pixel↔normalized, read/write .txt labels
+    dataset_builder.py   # DatasetBuilder: create, split, export, validate
+    annotation_manager.py # AnnotationManager: CRUD + JSON save/load
+    capture_manager.py   # CaptureManager: save frames, auto-bbox, session management
 ```
 
 ## Key Behaviours
@@ -56,6 +62,7 @@ src/
 - **Detection scope**: "Set only" mode filters YOLO classes to bricks present in the loaded set
 - **Static frame tuning**: Stopping video freezes the last frame; detection still runs on it so parameters can be tuned without camera overhead
 - **No re-detection after pickup**: Once a brick is marked (manually or by detection), it is excluded from future detection frames
+- **Annotation capture mode**: `AnnotationPanel` (toggle + Space shortcut) captures live frames as JPEG + YOLO label into `datasets/lego_set_<id>/session_*/`; `CaptureManager` handles I/O and auto-bbox via `ContourAnalyzer`
 
 ## Model Selection
 
@@ -69,7 +76,8 @@ Core project principles are in [.specify/memory/constitution.md](.specify/memory
 
 ## What Does NOT Exist
 
-- No annotation tool (`src/annotation/` does not exist; specs/004 was never implemented)
+- No full annotation editor (drag-to-draw bbox UI)
+- No training launcher (running `yolo train` from the app)
 - No web interface
 - No database — state is in-memory only, set reloaded from CSV each session
 
@@ -86,5 +94,6 @@ Tests are in `tests/`. Use `ruff check .` for linting.
 - `data/` — CSV set files, cached preview images
 - `models/` — YOLO `.pt` model files (not committed; download separately)
 - `screenshoot/` — frames saved by the user during a session
+- `datasets/` — annotation capture sessions (`lego_set_<id>/session_*/images/` + `labels/`)
 
 See [MODEL_ZOO.md](MODEL_ZOO.md) for available pre-trained models.

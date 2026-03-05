@@ -20,6 +20,8 @@ from ..models.video_source import VideoSource
 from .video_display import VideoDisplayWidget
 from ..vision.camera_scanner import VideoSourceConfigurator
 from .detection_panel import DetectionPanel
+from .annotation_panel import AnnotationPanel
+from ..annotation.capture_manager import CaptureManager
 from ..vision.detection_engine import YOLOv8Engine
 from ..vision.model_loader import ModelLoaderThread
 from ..vision.detection_state import DetectionState
@@ -38,6 +40,7 @@ class MainWindow(QMainWindow):
         self.current_set = None
         self.current_video_source = None
         self.detect_only_set_classes = True  # Default detection scope: only classes from loaded set
+        self.capture_manager: CaptureManager | None = None
 
         # Store auto-load parameters for deferred execution
         self.pending_set_file = set_file
@@ -221,7 +224,20 @@ class MainWindow(QMainWindow):
         self.logger.info(f"Set loaded: {lego_set.name}")
         # Apply detection filter based on new set
         self._update_detection_allowed_classes()
+        # Initialise capture manager for this set
+        self._init_capture_manager(lego_set)
         self._check_auto_start_video()
+
+    def _init_capture_manager(self, lego_set) -> None:
+        """Create a CaptureManager for the loaded set."""
+        try:
+            set_id = getattr(lego_set, 'set_number', None) or lego_set.name or "unknown"
+            dataset_root = os.path.join(os.getcwd(), "datasets", f"lego_set_{set_id}")
+            self.capture_manager = CaptureManager(dataset_root)
+            self.annotation_panel.set_session_path(self.capture_manager.get_session_path())
+            self.logger.info(f"CaptureManager initialised at {dataset_root}")
+        except Exception as e:
+            self.logger.error(f"Failed to initialise CaptureManager: {e}")
         
     def _on_set_error(self, error_msg: str):
         """Handle set loading error."""
@@ -276,6 +292,10 @@ class MainWindow(QMainWindow):
         self.detection_panel = DetectionPanel()
         main_layout.addWidget(self.detection_panel)
 
+        # Annotation panel (below detection panel)
+        self.annotation_panel = AnnotationPanel()
+        main_layout.addWidget(self.annotation_panel)
+
         # Create horizontal layout for video and brick list
         content_layout = QHBoxLayout()
 
@@ -324,7 +344,12 @@ class MainWindow(QMainWindow):
         self.detection_panel.detection_toggled.connect(self._on_detection_toggled)
         self.detection_panel.threshold_changed.connect(self._on_threshold_changed)
         self.detection_panel.state_changed.connect(self._on_detection_state_changed)
-        
+
+        # Connect annotation panel signals
+        self.brick_list_widget.brick_selected.connect(self.annotation_panel.set_active_class)
+        self.annotation_panel.capture_requested.connect(self._on_capture_requested)
+        self.annotation_panel.mode_changed.connect(lambda _: self._reprocess_current_frame())
+
         # Connect video display frame signal for detection processing
         self.video_display.frame_processed.connect(self._process_frame_for_detection)
 
@@ -359,6 +384,24 @@ class MainWindow(QMainWindow):
     def _on_brick_manually_marked(self, part_number: str, is_marked: bool):
         """Handle manual marking changes from brick list."""
         self.logger.info(f"Brick {part_number} manually marked: {is_marked}")
+
+    def _on_capture_requested(self, part_number: str):
+        """Capture the current frame for the given part number."""
+        if self.capture_manager is None:
+            self.logger.warning("Capture requested but CaptureManager not initialised")
+            return
+        frame = self.video_display.get_current_frame()
+        if frame is None:
+            self.logger.warning("No frame available for capture")
+            return
+        bbox = None
+        if self.annotation_panel.auto_bbox_enabled:
+            bbox = self.capture_manager.auto_detect_bbox(frame)
+        self.capture_manager.save_frame(frame, part_number, bbox)
+        count = self.capture_manager.get_capture_count(part_number)
+        self.annotation_panel.set_capture_count(part_number, count)
+        self.status_bar.showMessage(f"Captured frame {count} for {part_number}")
+        self.logger.info(f"Frame captured for {part_number} (total: {count})")
     
     def update_detected_bricks(self, detected_part_numbers: set):
         """Update which bricks are currently detected in the brick list."""
@@ -485,6 +528,7 @@ class MainWindow(QMainWindow):
             self.current_set = lego_set
             self.set_info_panel.load_set(lego_set)
             self.brick_list_widget.load_set(lego_set)  # Load into brick list widget
+            self._init_capture_manager(lego_set)
             if self.current_video_source:
                 self.start_button.setEnabled(True)
             self.status_bar.showMessage(f"Loaded set: {lego_set.name}")
@@ -716,29 +760,82 @@ class MainWindow(QMainWindow):
     def _process_frame_for_detection(self, frame: np.ndarray):
         """Process frame for detection if enabled."""
         if not self.detection_engine:
-            # No engine, display frame as-is
-            self._display_frame(frame)
+            self._display_frame(self._apply_annotation_overlay(frame))
             return
-        
+
         state = self.detection_engine.get_state()
         if state != DetectionState.ACTIVE:
-            # Detection not active, display frame without annotations
-            self._display_frame(frame)
+            self._display_frame(self._apply_annotation_overlay(frame))
             return
-        
+
         try:
-            # Run detection inference
             detections = self.detection_engine.infer(frame)
-            
-            # Draw detections on frame
             annotated_frame = self.video_display.draw_detections(frame, detections)
-            
-            # Update display with annotated frame
-            self._display_frame(annotated_frame)
+            # Pass original frame for bbox detection, annotated frame for display
+            self._display_frame(self._apply_annotation_overlay(annotated_frame, source_frame=frame))
         except Exception as e:
             self.logger.error(f"Error processing frame for detection: {e}")
-            # On error, display original frame
-            self._display_frame(frame)
+            self._display_frame(self._apply_annotation_overlay(frame))
+
+    def _apply_annotation_overlay(
+        self, display_frame: np.ndarray, source_frame: np.ndarray = None
+    ) -> np.ndarray:
+        """Draw annotation mode HUD on display_frame when annotation mode is active.
+
+        source_frame: raw camera frame used for bbox detection (avoids YOLO-drawn
+        boxes confusing the Otsu threshold). Falls back to display_frame if None.
+        """
+        if not hasattr(self, 'annotation_panel') or not self.annotation_panel.annotation_mode:
+            return display_frame
+        if self.capture_manager is None:
+            return display_frame
+
+        import cv2
+        result = display_frame.copy()
+        h, w = result.shape[:2]
+        active = self.annotation_panel.active_class
+        detect_src = source_frame if source_frame is not None else display_frame
+
+        # Red border — "recording" indicator
+        cv2.rectangle(result, (0, 0), (w - 1, h - 1), (0, 0, 200), 4)
+
+        # Top-left badge: "● ANN | <class>"
+        badge = f" ANN | {active or '—'} "
+        (bw, bh), _ = cv2.getTextSize(badge, cv2.FONT_HERSHEY_SIMPLEX, 0.65, 2)
+        cv2.rectangle(result, (4, 4), (bw + 10, bh + 14), (0, 0, 180), -1)
+        cv2.putText(result, badge, (7, bh + 8), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
+
+        if self.annotation_panel.auto_bbox_enabled:
+            bbox = self.capture_manager.auto_detect_bbox(detect_src)
+            if bbox is not None:
+                x, y, bw2, bh2 = bbox
+                # Corner ticks (cleaner than a full rectangle)
+                tick = 18
+                green = (0, 220, 60)
+                for cx, cy, dx, dy in [
+                    (x, y, 1, 1), (x + bw2, y, -1, 1),
+                    (x, y + bh2, 1, -1), (x + bw2, y + bh2, -1, -1),
+                ]:
+                    cv2.line(result, (cx, cy), (cx + tick * dx, cy), green, 3)
+                    cv2.line(result, (cx, cy), (cx, cy + tick * dy), green, 3)
+                # Thin full rect for context
+                cv2.rectangle(result, (x, y), (x + bw2, y + bh2), green, 1)
+                # Class label above bbox
+                if active:
+                    (lw, lh), _ = cv2.getTextSize(active, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
+                    lx = max(4, x)
+                    ly = max(lh + 10, y - 4)
+                    cv2.rectangle(result, (lx - 2, ly - lh - 6), (lx + lw + 4, ly + 2), (0, 180, 50), -1)
+                    cv2.putText(result, active, (lx, ly - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            else:
+                # No contour — warn at bottom centre
+                msg = "Auto-bbox: aucun contour detecte"
+                (mw, mh), _ = cv2.getTextSize(msg, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 2)
+                mx = max(0, w // 2 - mw // 2)
+                cv2.rectangle(result, (mx - 6, h - mh - 18), (mx + mw + 6, h - 6), (0, 100, 220), -1)
+                cv2.putText(result, msg, (mx, h - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 2)
+
+        return result
 
     def _display_frame(self, frame: np.ndarray):
         """Display a frame in the video widget."""
@@ -757,21 +854,21 @@ class MainWindow(QMainWindow):
         Works even when video is stopped to allow parameter tuning on a static image.
         """
         try:
-            if not hasattr(self, 'detection_engine') or self.detection_engine is None:
-                return
             frame = self.video_display.get_current_frame()
             if frame is None:
+                return
+            if not hasattr(self, 'detection_engine') or self.detection_engine is None:
+                self._display_frame(self._apply_annotation_overlay(frame))
                 return
             
             state = self.detection_engine.get_state()
             if state != DetectionState.ACTIVE:
-                # Detection not active, just refresh the clean frame
-                self._display_frame(frame)
+                self._display_frame(self._apply_annotation_overlay(frame))
                 return
-                
+
             detections = self.detection_engine.infer(frame)
             annotated_frame = self.video_display.draw_detections(frame, detections)
-            self._display_frame(annotated_frame)
+            self._display_frame(self._apply_annotation_overlay(annotated_frame, source_frame=frame))
         except Exception as e:
             self.logger.error(f"Failed to reprocess current frame: {e}")
 
@@ -795,6 +892,14 @@ class MainWindow(QMainWindow):
             "4. Check Boxes: Mark bricks as found\n"
             "5. Stop Video (F6): End the video session\n\n"
             "For more help, visit the project documentation.")
+
+    def keyPressEvent(self, event):
+        """Handle key press events — Space triggers capture in annotation mode."""
+        if event.key() == Qt.Key.Key_Space:
+            if self.annotation_panel.trigger_capture_if_active():
+                event.accept()
+                return
+        super().keyPressEvent(event)
 
     def closeEvent(self, event):
         """

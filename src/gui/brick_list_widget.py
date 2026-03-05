@@ -82,17 +82,20 @@ class BrickListWidget(QListWidget):
         
         self._setup_ui()
         self.logger.info("Brick list widget initialized with image downloader")
-    
+
     def _setup_ui(self):
         """Setup the list widget appearance."""
         # Set uniform item sizes
         self.setUniformItemSizes(True)
-        
+
         # Enable smooth scrolling
         self.setVerticalScrollMode(QListWidget.ScrollMode.ScrollPerPixel)
-        
+
         # Set selection behavior
         self.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
+
+        # Emit brick_selected when the selected row changes
+        self.currentItemChanged.connect(self._on_current_item_changed)
         
         # Style
         self.setStyleSheet("""
@@ -302,6 +305,14 @@ class BrickListWidget(QListWidget):
         # Emit signal
         self.brick_manually_marked.emit(part_number, is_marked)
     
+    def _on_current_item_changed(self, current, previous) -> None:
+        """Emit brick_selected when the highlighted list item changes."""
+        if current is None:
+            return
+        widget = self.itemWidget(current)
+        if isinstance(widget, BrickListItem):
+            self.brick_selected.emit(widget.brick.part_number)
+
     def update_detection_status(self, detected_part_numbers: Set[str]) -> None:
         """
         Update which bricks are currently detected.
